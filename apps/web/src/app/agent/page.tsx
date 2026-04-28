@@ -6,9 +6,9 @@ export default function AgentPortalPage() {
 
   return (
     <PortalShell
-      heading="Maya's coordination workspace"
+      heading="Relationship inbox"
       kicker="Agent portal"
-      description="A multi-thread inbox for every buyer relationship, with direct messaging, property-linked discussions, shareable invites, and a summary rail that keeps the whole search moving."
+      description="Open the relationship first, keep the direct chat at the center, and let property threads, invites, and action items support the next decision."
       snapshot={snapshot}
     />
   );

@@ -25,35 +25,35 @@ export default async function LoginPage({
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[1300px] flex-col gap-8 px-4 py-6 sm:px-6 lg:px-10">
-      <section className="overflow-hidden rounded-[40px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(214,165,79,0.22),_transparent_36%),linear-gradient(145deg,_rgba(255,255,255,0.05),_rgba(255,255,255,0.02))] p-8 shadow-[0_28px_90px_rgba(0,0,0,0.3)] sm:p-10">
+      <section className="overflow-hidden rounded-[36px] border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
         <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_460px]">
           <div>
-            <p className="text-xs uppercase tracking-[0.34em] text-stone-400">NestPath access</p>
-            <h1 className="mt-4 max-w-3xl text-5xl font-semibold tracking-tight text-stone-50 sm:text-6xl">
+            <p className="text-xs uppercase tracking-[0.22em] text-slate-400">NestPath access</p>
+            <h1 className="mt-4 max-w-3xl text-5xl font-semibold tracking-tight text-slate-900 sm:text-6xl">
               Sign in with a magic link and land in the right portal.
             </h1>
-            <p className="mt-6 max-w-3xl text-lg leading-9 text-stone-300">
+            <p className="mt-6 max-w-3xl text-lg leading-9 text-slate-500">
               This is the first live step of the NestPath stack. Supabase Auth now handles identity,
               while the shared inbox, property threads, and invite flow can build on top of that
               real session state.
             </p>
 
             <div className="mt-8 grid gap-4 md:grid-cols-3">
-              <div className="rounded-[28px] border border-white/10 bg-white/4 p-5">
-                <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Agent</p>
-                <p className="mt-3 text-sm leading-7 text-stone-300">
+              <div className="rounded-[26px] border border-slate-200 bg-slate-50 p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Agent</p>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
                   Multi-thread inbox, summary rail, and buyer coordination.
                 </p>
               </div>
-              <div className="rounded-[28px] border border-white/10 bg-white/4 p-5">
-                <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Buyer</p>
-                <p className="mt-3 text-sm leading-7 text-stone-300">
+              <div className="rounded-[26px] border border-slate-200 bg-slate-50 p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Buyer</p>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
                   A calmer search hub with property-specific conversations.
                 </p>
               </div>
-              <div className="rounded-[28px] border border-white/10 bg-white/4 p-5">
-                <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Next</p>
-                <p className="mt-3 text-sm leading-7 text-stone-300">
+              <div className="rounded-[26px] border border-slate-200 bg-slate-50 p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Default flow</p>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
                   After auth, we’ll wire realtime messages and live thread records.
                 </p>
               </div>
@@ -62,13 +62,13 @@ export default async function LoginPage({
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/agent"
-                className="rounded-full border border-white/12 px-5 py-3 text-sm text-stone-200 transition hover:border-white/20 hover:text-stone-50"
+                className="rounded-full border border-slate-200 px-5 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
               >
                 Agent preview
               </Link>
               <Link
                 href="/buyer"
-                className="rounded-full border border-white/12 px-5 py-3 text-sm text-stone-200 transition hover:border-white/20 hover:text-stone-50"
+                className="rounded-full border border-slate-200 px-5 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
               >
                 Buyer preview
               </Link>

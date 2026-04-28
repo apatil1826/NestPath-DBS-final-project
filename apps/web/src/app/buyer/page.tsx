@@ -6,9 +6,9 @@ export default function BuyerPortalPage() {
 
   return (
     <PortalShell
-      heading="Jordan's home search hub"
+      heading="Shared home search workspace"
       kicker="Buyer portal"
-      description="A calmer view of the same relationship: direct access to the agent, property-specific threads for each option under review, and a lightweight summary of the next actions that matter."
+      description="The buyer experience starts in the conversation, with property context and next steps close by but never competing with the main thread."
       snapshot={snapshot}
     />
   );

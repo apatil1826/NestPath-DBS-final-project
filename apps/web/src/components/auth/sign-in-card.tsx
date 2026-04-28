@@ -50,10 +50,10 @@ export function SignInCard({
   }
 
   return (
-    <div className="rounded-[32px] border border-white/10 bg-[#111111] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
-      <p className="text-xs uppercase tracking-[0.28em] text-stone-500">Supabase auth</p>
-      <h2 className="mt-3 text-2xl font-semibold text-stone-50">Request a magic link</h2>
-      <p className="mt-3 text-sm leading-7 text-stone-300">
+    <div className="rounded-[30px] border border-slate-200 bg-slate-50 p-6 shadow-sm">
+      <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Supabase auth</p>
+      <h2 className="mt-3 text-2xl font-semibold text-slate-900">Request a magic link</h2>
+      <p className="mt-3 text-sm leading-7 text-slate-500">
         This first live auth flow uses email magic links so an agent or buyer can enter the product
         without managing passwords during early development.
       </p>
@@ -66,12 +66,12 @@ export function SignInCard({
             className={[
               "rounded-[22px] border px-4 py-4 text-left transition",
               role === "agent"
-                ? "border-[#d6a54f]/50 bg-[#231d13] text-stone-50"
-                : "border-white/8 bg-white/4 text-stone-300 hover:border-white/16",
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
             ].join(" ")}
           >
             <p className="text-sm font-semibold">Agent</p>
-            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-500">
+            <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400">
               Dashboard + buyer threads
             </p>
           </button>
@@ -81,62 +81,62 @@ export function SignInCard({
             className={[
               "rounded-[22px] border px-4 py-4 text-left transition",
               role === "buyer"
-                ? "border-[#d6a54f]/50 bg-[#231d13] text-stone-50"
-                : "border-white/8 bg-white/4 text-stone-300 hover:border-white/16",
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
             ].join(" ")}
           >
             <p className="text-sm font-semibold">Buyer</p>
-            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-500">
+            <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400">
               Search hub + property threads
             </p>
           </button>
         </div>
 
         <label className="block">
-          <span className="mb-2 block text-sm font-medium text-stone-200">Full name</span>
+          <span className="mb-2 block text-sm font-medium text-slate-700">Full name</span>
           <input
             required
             value={fullName}
             onChange={(event) => setFullName(event.target.value)}
-            className="w-full rounded-[18px] border border-white/10 bg-white/4 px-4 py-3 text-sm text-stone-50 outline-none transition placeholder:text-stone-500 focus:border-[#d6a54f]/50"
+            className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900"
             placeholder="Jordan Lee"
           />
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-sm font-medium text-stone-200">Email address</span>
+          <span className="mb-2 block text-sm font-medium text-slate-700">Email address</span>
           <input
             required
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-[18px] border border-white/10 bg-white/4 px-4 py-3 text-sm text-stone-50 outline-none transition placeholder:text-stone-500 focus:border-[#d6a54f]/50"
+            className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900"
             placeholder="name@example.com"
           />
         </label>
 
-        <div className="rounded-[22px] border border-white/8 bg-white/4 px-4 py-4 text-xs uppercase tracking-[0.18em] text-stone-500">
+        <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-xs uppercase tracking-[0.14em] text-slate-400">
           Redirect after sign-in: {nextPath}
         </div>
 
         <button
           type="submit"
           disabled={status === "submitting"}
-          className="w-full rounded-full bg-[#d6a54f] px-5 py-3 text-sm font-semibold text-[#1d180e] transition hover:bg-[#e6b760] disabled:cursor-not-allowed disabled:opacity-70"
+          className="w-full rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {status === "submitting" ? "Sending link..." : "Email me a magic link"}
         </button>
       </form>
 
       {status === "sent" ? (
-        <p className="mt-4 rounded-[18px] border border-emerald-400/15 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+        <p className="mt-4 rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
           Magic link sent. Open the email on this device and you’ll land in the right NestPath
           portal.
         </p>
       ) : null}
 
       {status === "error" ? (
-        <p className="mt-4 rounded-[18px] border border-rose-400/15 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+        <p className="mt-4 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {errorMessage}
         </p>
       ) : null}

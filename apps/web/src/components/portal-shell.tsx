@@ -32,45 +32,58 @@ function stageLabel(stage: Property["stage"]) {
   return stage.replaceAll("_", " ");
 }
 
-function stageClassName(stage: Property["stage"]) {
+function stageBadge(stage: Property["stage"]) {
   switch (stage) {
     case "touring":
-      return "bg-sky-500/15 text-sky-100 ring-1 ring-sky-300/20";
+      return "bg-sky-50 text-sky-700 ring-sky-100";
     case "offer":
-      return "bg-amber-500/15 text-amber-100 ring-1 ring-amber-300/20";
+      return "bg-amber-50 text-amber-700 ring-amber-100";
     case "under_contract":
-      return "bg-emerald-500/15 text-emerald-100 ring-1 ring-emerald-300/20";
+      return "bg-emerald-50 text-emerald-700 ring-emerald-100";
     case "closed":
-      return "bg-stone-200 text-stone-900";
+      return "bg-stone-100 text-stone-700 ring-stone-200";
     case "paused":
-      return "bg-rose-500/15 text-rose-100 ring-1 ring-rose-300/20";
+      return "bg-rose-50 text-rose-700 ring-rose-100";
     default:
-      return "bg-white/10 text-stone-100 ring-1 ring-white/10";
+      return "bg-slate-100 text-slate-700 ring-slate-200";
   }
 }
 
-function actionStatusClassName(status: ActionItem["status"]) {
-  switch (status) {
-    case "done":
-      return "bg-emerald-400/15 text-emerald-100";
-    case "in_progress":
-      return "bg-amber-400/15 text-amber-100";
-    default:
-      return "bg-white/10 text-stone-100";
-  }
-}
-
-function inviteStatusClassName(status: Invite["status"]) {
+function inviteBadge(status: Invite["status"]) {
   switch (status) {
     case "accepted":
-      return "bg-emerald-400/15 text-emerald-100";
+      return "bg-emerald-50 text-emerald-700 ring-emerald-100";
     case "expired":
-      return "bg-rose-400/15 text-rose-100";
+      return "bg-rose-50 text-rose-700 ring-rose-100";
     case "revoked":
-      return "bg-stone-200 text-stone-900";
+      return "bg-stone-100 text-stone-700 ring-stone-200";
     default:
-      return "bg-sky-400/15 text-sky-100";
+      return "bg-sky-50 text-sky-700 ring-sky-100";
   }
+}
+
+function actionBadge(status: ActionItem["status"]) {
+  switch (status) {
+    case "done":
+      return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+    case "in_progress":
+      return "bg-amber-50 text-amber-700 ring-amber-100";
+    default:
+      return "bg-slate-100 text-slate-700 ring-slate-200";
+  }
+}
+
+function NavPill({ label, active = false }: { label: string; active?: boolean }) {
+  return (
+    <span
+      className={[
+        "inline-flex rounded-full px-3 py-2 text-sm",
+        active ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
+      ].join(" ")}
+    >
+      {label}
+    </span>
+  );
 }
 
 function StatCard({
@@ -83,65 +96,45 @@ function StatCard({
   sublabel: string;
 }) {
   return (
-    <div className="rounded-[28px] border border-white/10 bg-white/6 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-      <p className="text-xs uppercase tracking-[0.25em] text-stone-400">{label}</p>
-      <p className="mt-3 text-3xl font-semibold text-stone-50">{value}</p>
-      <p className="mt-2 text-sm text-stone-300">{sublabel}</p>
+    <div className="rounded-[26px] border border-slate-200 bg-white p-4">
+      <p className="text-xs uppercase tracking-[0.16em] text-slate-400">{label}</p>
+      <p className="mt-3 text-3xl font-semibold text-slate-900">{value}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-500">{sublabel}</p>
     </div>
   );
 }
 
-function ThreadList({
-  threads,
-  activeThreadId,
+function ConversationRow({
+  thread,
+  active,
 }: {
-  threads: Thread[];
-  activeThreadId: string;
+  thread: Thread;
+  active: boolean;
 }) {
   return (
-    <div className="rounded-[32px] border border-white/10 bg-[#151515] p-4">
-      <div className="mb-4 flex items-center justify-between px-2">
-        <div>
-          <p className="text-xs uppercase tracking-[0.25em] text-stone-500">Inbox</p>
-          <h2 className="mt-2 text-xl font-semibold text-stone-50">Threads</h2>
+    <div
+      className={[
+        "rounded-2xl border p-4 transition",
+        active
+          ? "border-slate-900 bg-white shadow-sm"
+          : "border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-white",
+      ].join(" ")}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-slate-900">{thread.title}</p>
+          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
+            {thread.kind === "direct" ? "Direct chat" : "Property thread"}
+          </p>
         </div>
-        <span className="rounded-full bg-white/8 px-3 py-1 text-xs text-stone-300">
-          Slack-style split
-        </span>
+        {thread.unreadCount > 0 ? (
+          <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-slate-900 px-2 py-1 text-xs font-semibold text-white">
+            {thread.unreadCount}
+          </span>
+        ) : null}
       </div>
-      <div className="space-y-3">
-        {threads.map((thread) => {
-          const active = thread.id === activeThreadId;
-
-          return (
-            <div
-              key={thread.id}
-              className={[
-                "rounded-[24px] border p-4 transition",
-                active
-                  ? "border-[#d6a54f]/50 bg-[#221c13] shadow-[0_18px_48px_rgba(214,165,79,0.14)]"
-                  : "border-white/6 bg-white/4 hover:border-white/12 hover:bg-white/6",
-              ].join(" ")}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-stone-50">{thread.title}</p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.25em] text-stone-500">
-                    {thread.kind === "direct" ? "Direct line" : "Property thread"}
-                  </p>
-                </div>
-                {thread.unreadCount > 0 ? (
-                  <span className="rounded-full bg-[#d6a54f] px-2 py-1 text-xs font-semibold text-[#1d170d]">
-                    {thread.unreadCount}
-                  </span>
-                ) : null}
-              </div>
-              <p className="mt-4 line-clamp-2 text-sm text-stone-300">{thread.lastMessagePreview}</p>
-              <p className="mt-4 text-xs text-stone-500">{formatTimestamp(thread.lastMessageAt)}</p>
-            </div>
-          );
-        })}
-      </div>
+      <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-500">{thread.lastMessagePreview}</p>
+      <p className="mt-4 text-xs text-slate-400">{formatTimestamp(thread.lastMessageAt)}</p>
     </div>
   );
 }
@@ -157,7 +150,7 @@ function MessageBubble({
 }) {
   if (message.kind === "system") {
     return (
-      <div className="mx-auto max-w-xl rounded-full border border-white/10 bg-white/6 px-4 py-2 text-center text-xs uppercase tracking-[0.18em] text-stone-400">
+      <div className="mx-auto max-w-xl rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-center text-xs uppercase tracking-[0.16em] text-slate-500">
         {message.body}
       </div>
     );
@@ -169,25 +162,25 @@ function MessageBubble({
   return (
     <div className={`flex gap-3 ${isViewer ? "justify-end" : "justify-start"}`}>
       {!isViewer ? (
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#232323] text-sm font-semibold text-stone-100">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-sm font-semibold text-slate-700">
           {sender ? getInitials(sender.fullName) : "NP"}
         </div>
       ) : null}
-      <div className={`max-w-xl ${isViewer ? "items-end" : "items-start"} flex flex-col`}>
-        <p className="mb-2 text-xs uppercase tracking-[0.2em] text-stone-500">
+      <div className={`flex max-w-xl flex-col ${isViewer ? "items-end" : "items-start"}`}>
+        <p className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
           {isViewer ? "You" : sender?.fullName ?? "NestPath"}
         </p>
         <div
           className={[
-            "rounded-[26px] px-5 py-4 text-sm leading-7 shadow-[0_16px_40px_rgba(0,0,0,0.16)]",
+            "rounded-[22px] px-4 py-3 text-sm leading-7",
             isViewer
-              ? "bg-[#d6a54f] text-[#1b160e]"
-              : "border border-white/8 bg-[#181818] text-stone-100",
+              ? "bg-slate-900 text-white"
+              : "border border-slate-200 bg-white text-slate-700",
           ].join(" ")}
         >
           {message.body}
         </div>
-        <p className="mt-2 text-xs text-stone-500">{formatTimestamp(message.createdAt)}</p>
+        <p className="mt-2 text-xs text-slate-400">{formatTimestamp(message.createdAt)}</p>
       </div>
     </div>
   );
@@ -195,120 +188,121 @@ function MessageBubble({
 
 function Composer() {
   return (
-    <div className="rounded-[30px] border border-white/10 bg-[#141414] p-4">
-      <div className="rounded-[24px] border border-white/8 bg-black/20 px-4 py-4 text-sm text-stone-500">
+    <div className="rounded-[26px] border border-slate-200 bg-slate-50 p-4">
+      <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-400">
         Type a message here. In the live Supabase version, this composer will insert into
-        `messages` and subscribe to realtime updates on the thread.
+        `messages` and subscribe to realtime updates on the selected thread.
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-stone-500">
-          <span className="rounded-full border border-white/10 px-3 py-2">Realtime</span>
-          <span className="rounded-full border border-white/10 px-3 py-2">Property aware</span>
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs uppercase tracking-[0.14em] text-slate-500">
+            Direct chat
+          </span>
+          <span className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs uppercase tracking-[0.14em] text-slate-500">
+            Create property thread
+          </span>
         </div>
-        <button className="rounded-full bg-[#d6a54f] px-5 py-3 text-sm font-semibold text-[#1c170d] transition hover:bg-[#e6b65e]">
-          Send when connected
+        <button className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">
+          Send
         </button>
       </div>
     </div>
   );
 }
 
-function InvitePanel({ invites }: { invites: Invite[] }) {
-  return (
-    <div className="rounded-[32px] border border-white/10 bg-[#151515] p-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.25em] text-stone-500">Connect</p>
-          <h3 className="mt-2 text-lg font-semibold text-stone-50">Invite options</h3>
-        </div>
-        <button className="rounded-full border border-white/12 px-3 py-2 text-xs text-stone-300 transition hover:border-white/20 hover:text-stone-50">
-          Create invite
-        </button>
-      </div>
-      <div className="mt-4 space-y-3">
-        {invites.map((invite) => (
-          <div key={invite.id} className="rounded-[24px] border border-white/8 bg-white/4 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-stone-100">
-                  {invite.channel === "email" ? invite.buyerEmail : "Shareable property link"}
-                </p>
-                <p className="mt-1 text-xs uppercase tracking-[0.2em] text-stone-500">
-                  {invite.channel} invite
-                </p>
-              </div>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-medium ${inviteStatusClassName(invite.status)}`}
-              >
-                {invite.status}
-              </span>
-            </div>
-            <p className="mt-3 rounded-2xl bg-black/20 px-3 py-3 font-mono text-xs text-stone-300">
-              /invite/{invite.token}
-            </p>
-            <p className="mt-3 text-xs text-stone-500">
-              Expires {formatTimestamp(invite.expiresAt)}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SummaryPanel({
+function SummaryRail({
+  invites,
   properties,
   actionItems,
   viewer,
 }: {
+  invites: Invite[];
   properties: Property[];
   actionItems: ActionItem[];
   viewer: Profile;
 }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-[32px] border border-white/10 bg-[#151515] p-5">
-        <p className="text-xs uppercase tracking-[0.25em] text-stone-500">Summary</p>
-        <h3 className="mt-2 text-lg font-semibold text-stone-50">Action rollup</h3>
+      <section className="rounded-[28px] border border-slate-200 bg-white p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Summary</p>
+            <h3 className="mt-2 text-lg font-semibold text-slate-900">What needs attention</h3>
+          </div>
+          <button className="rounded-full border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-50">
+            New task
+          </button>
+        </div>
         <div className="mt-4 space-y-3">
           {actionItems.map((item) => (
-            <div key={item.id} className="rounded-[24px] border border-white/8 bg-white/4 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-stone-100">{item.title}</p>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${actionStatusClassName(item.status)}`}
-                >
+            <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-medium leading-6 text-slate-900">{item.title}</p>
+                <span className={`rounded-full px-3 py-1 text-xs ring-1 ${actionBadge(item.status)}`}>
                   {item.status.replaceAll("_", " ")}
                 </span>
               </div>
-              <p className="mt-3 text-xs uppercase tracking-[0.16em] text-stone-500">
+              <p className="mt-3 text-xs uppercase tracking-[0.14em] text-slate-400">
                 {item.assigneeProfileId === viewer.id ? "Assigned to you" : "Shared workflow"}
               </p>
             </div>
           ))}
         </div>
-      </div>
-      <div className="rounded-[32px] border border-white/10 bg-[#151515] p-5">
-        <p className="text-xs uppercase tracking-[0.25em] text-stone-500">Properties</p>
-        <h3 className="mt-2 text-lg font-semibold text-stone-50">Live deal context</h3>
+      </section>
+
+      <section className="rounded-[28px] border border-slate-200 bg-white p-5">
+        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Properties</p>
+        <h3 className="mt-2 text-lg font-semibold text-slate-900">Property threads</h3>
         <div className="mt-4 space-y-3">
           {properties.map((property) => (
-            <div key={property.id} className="rounded-[24px] border border-white/8 bg-white/4 p-4">
-              <div className="flex items-center justify-between gap-3">
+            <div key={property.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-stone-100">{property.title}</p>
-                  <p className="mt-1 text-sm text-stone-400">{property.address}</p>
+                  <p className="text-sm font-medium text-slate-900">{property.title}</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">{property.address}</p>
                 </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${stageClassName(property.stage)}`}
-                >
+                <span className={`rounded-full px-3 py-1 text-xs capitalize ring-1 ${stageBadge(property.stage)}`}>
                   {stageLabel(property.stage)}
                 </span>
               </div>
             </div>
           ))}
         </div>
-      </div>
+      </section>
+
+      <section className="rounded-[28px] border border-slate-200 bg-white p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Invites</p>
+            <h3 className="mt-2 text-lg font-semibold text-slate-900">Connection options</h3>
+          </div>
+          <button className="rounded-full border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-50">
+            Invite buyer
+          </button>
+        </div>
+        <div className="mt-4 space-y-3">
+          {invites.map((invite) => (
+            <div key={invite.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    {invite.channel === "email" ? invite.buyerEmail : "Shareable relationship link"}
+                  </p>
+                  <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400">
+                    {invite.channel} invite
+                  </p>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs ring-1 ${inviteBadge(invite.status)}`}>
+                  {invite.status}
+                </span>
+              </div>
+              <p className="mt-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 font-mono text-xs text-slate-500">
+                /invite/{invite.token}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -326,114 +320,196 @@ export function PortalShell({
   snapshot: PortalSnapshot;
   toolbar?: ReactNode;
 }) {
+  const counterpartLabel = snapshot.counterparts.map((profile) => profile.fullName).join(", ");
+
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8 px-4 py-6 sm:px-6 lg:px-10">
-      <header className="overflow-hidden rounded-[36px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(214,165,79,0.22),_transparent_35%),linear-gradient(135deg,_rgba(255,255,255,0.06),_rgba(255,255,255,0.02))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.28)] sm:p-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-xs uppercase tracking-[0.34em] text-stone-400">{kicker}</p>
-            <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-50 sm:text-5xl">
-              {heading}
-            </h1>
-            <p className="mt-4 max-w-2xl text-base leading-8 text-stone-300">{description}</p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {toolbar}
-            <Link
-              href="/"
-              className="rounded-full border border-white/12 px-5 py-3 text-sm text-stone-200 transition hover:border-white/20 hover:text-stone-50"
-            >
-              Home
-            </Link>
-            <Link
-              href="/agent"
-              className="rounded-full border border-white/12 px-5 py-3 text-sm text-stone-200 transition hover:border-white/20 hover:text-stone-50"
-            >
-              Agent portal
-            </Link>
-            <Link
-              href="/buyer"
-              className="rounded-full bg-[#d6a54f] px-5 py-3 text-sm font-semibold text-[#1d180e] transition hover:bg-[#e3b766]"
-            >
-              Buyer portal
-            </Link>
-          </div>
+    <main className="mx-auto flex min-h-screen w-full max-w-[1680px] gap-6 px-4 py-5 sm:px-6 lg:px-8">
+      <aside className="hidden w-[220px] shrink-0 rounded-[30px] border border-slate-200 bg-white p-4 lg:flex lg:flex-col">
+        <Link href="/" className="rounded-2xl px-3 py-3">
+          <p className="text-lg font-semibold text-slate-900">NestPath</p>
+          <p className="mt-1 text-sm text-slate-500">Shared client workspace</p>
+        </Link>
+        <div className="mt-6 space-y-2">
+          <NavPill label="Inbox" active />
+          <NavPill label="Relationships" />
+          <NavPill label="Action Items" />
+          <NavPill label="Profile" />
         </div>
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <StatCard
-            label="Relationships"
-            value="1 live"
-            sublabel="Long-lived agent-buyer connection across multiple property threads."
-          />
-          <StatCard
-            label="Inbox"
-            value={`${snapshot.threads.length} threads`}
-            sublabel="General conversation plus property-specific threads for active evaluation."
-          />
-          <StatCard
-            label="Invites"
-            value={`${snapshot.invites.filter((invite) => invite.status === "pending").length} pending`}
-            sublabel="Email invites and shareable links can coexist in the same relationship."
-          />
+        <div className="mt-8 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+          <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Default flow</p>
+          <p className="mt-2 text-sm font-medium leading-6 text-slate-700">
+            Inbox first, relationship second, property threads inside the relationship.
+          </p>
         </div>
-      </header>
+      </aside>
 
-      <div className="rounded-[22px] border border-[#d6a54f]/25 bg-[#1a1712] px-5 py-4 text-sm text-stone-300">
-        Public preview mode is enabled so the full product is visible while we finish live auth and
-        realtime data wiring.
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)_340px]">
-        <ThreadList threads={snapshot.threads} activeThreadId={snapshot.activeThread.id} />
-
-        <section className="rounded-[32px] border border-white/10 bg-[#111111] p-5 shadow-[0_24px_60px_rgba(0,0,0,0.24)]">
-          <div className="flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-stone-500">
-                {snapshot.activeThread.kind === "direct" ? "Direct relationship" : "Property channel"}
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold text-stone-50">
-                {snapshot.activeThread.title}
-              </h2>
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-stone-300">
-                {snapshot.activeThread.summary}
-              </p>
+      <div className="flex min-w-0 flex-1 flex-col gap-6">
+        <header className="rounded-[32px] border border-slate-200 bg-white p-5 sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-3xl">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{kicker}</p>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                {heading}
+              </h1>
+              <p className="mt-4 max-w-2xl text-base leading-8 text-slate-500">{description}</p>
             </div>
-            {snapshot.activeThread.property ? (
-              <div className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3">
-                <p className="text-sm font-medium text-stone-100">
-                  {snapshot.activeThread.property.address}
-                </p>
-                <p className="mt-1 text-xs uppercase tracking-[0.2em] text-stone-500">
-                  Property scoped thread
-                </p>
+            <div className="flex flex-wrap gap-3">
+              {toolbar}
+              <Link
+                href="/agent"
+                className="rounded-full border border-slate-200 px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+              >
+                Agent
+              </Link>
+              <Link
+                href="/buyer"
+                className="rounded-full border border-slate-200 px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+              >
+                Buyer
+              </Link>
+              <button className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">
+                Invite buyer
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-5">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Active relationship</p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
+                  {getInitials(counterpartLabel || snapshot.viewer.fullName)}
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">{counterpartLabel}</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Relationship-first workspace with direct chat, property threads, and summary.
+                  </p>
+                </div>
               </div>
-            ) : null}
-          </div>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <span className="rounded-full bg-white px-3 py-2 text-xs uppercase tracking-[0.14em] text-slate-500 ring-1 ring-slate-200">
+                  Messages
+                </span>
+                <span className="rounded-full bg-white px-3 py-2 text-xs uppercase tracking-[0.14em] text-slate-500 ring-1 ring-slate-200">
+                  Properties
+                </span>
+                <span className="rounded-full bg-white px-3 py-2 text-xs uppercase tracking-[0.14em] text-slate-500 ring-1 ring-slate-200">
+                  Summary
+                </span>
+              </div>
+            </div>
 
-          <div className="flex flex-col gap-4 py-6">
-            {snapshot.activeThread.messages.map((message) => (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                viewer={snapshot.viewer}
-                participants={snapshot.activeThread.participants}
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              <StatCard
+                label="Threads"
+                value={`${snapshot.threads.length}`}
+                sublabel="Direct chat plus property-specific conversations."
               />
-            ))}
+              <StatCard
+                label="Properties"
+                value={`${snapshot.properties.length}`}
+                sublabel="Each property stays nested under the relationship."
+              />
+              <StatCard
+                label="Open items"
+                value={`${snapshot.actionItems.filter((item) => item.status !== "done").length}`}
+                sublabel="One calm rollup of next steps and pending work."
+              />
+            </div>
           </div>
+        </header>
 
-          <Composer />
-        </section>
+        <section className="grid min-h-0 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_340px]">
+          <aside className="rounded-[30px] border border-slate-200 bg-white p-4">
+            <div className="flex items-center justify-between px-2 pb-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Inbox</p>
+                <h2 className="mt-2 text-xl font-semibold text-slate-900">Relationships</h2>
+              </div>
+              <button className="rounded-full border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-50">
+                New
+              </button>
+            </div>
 
-        <div className="space-y-4">
-          <InvitePanel invites={snapshot.invites} />
-          <SummaryPanel
+            <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+              One row per buyer relationship. Open the relationship, then branch into direct chat or
+              a property thread.
+            </div>
+
+            <div className="space-y-3">
+              {snapshot.threads.map((thread) => (
+                <ConversationRow
+                  key={thread.id}
+                  thread={thread}
+                  active={thread.id === snapshot.activeThread.id}
+                />
+              ))}
+            </div>
+          </aside>
+
+          <section className="rounded-[30px] border border-slate-200 bg-white p-5">
+            <div className="border-b border-slate-200 pb-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                    {snapshot.activeThread.kind === "direct" ? "Direct chat" : "Property thread"}
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+                    {snapshot.activeThread.title}
+                  </h2>
+                  <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-500">
+                    {snapshot.activeThread.summary}
+                  </p>
+                </div>
+
+                {snapshot.activeThread.property ? (
+                  <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-sm font-medium text-slate-900">
+                      {snapshot.activeThread.property.address}
+                    </p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400">
+                      Property context
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                <span className="rounded-full bg-slate-900 px-3 py-2 text-xs font-medium text-white">
+                  Messages
+                </span>
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500">
+                  Properties
+                </span>
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500">
+                  Summary
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-5 py-6">
+              {snapshot.activeThread.messages.map((message) => (
+                <MessageBubble
+                  key={message.id}
+                  message={message}
+                  viewer={snapshot.viewer}
+                  participants={snapshot.activeThread.participants}
+                />
+              ))}
+            </div>
+
+            <Composer />
+          </section>
+
+          <SummaryRail
+            invites={snapshot.invites}
             properties={snapshot.properties}
             actionItems={snapshot.actionItems}
             viewer={snapshot.viewer}
           />
-        </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

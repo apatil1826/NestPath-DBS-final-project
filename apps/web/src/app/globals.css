@@ -3,13 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --background: #0d0d0d;
-  --foreground: #f2efe8;
-  --accent: #d6a54f;
-  --accent-soft: rgba(214, 165, 79, 0.16);
-  --muted: #9b958a;
+  --background: #f8fafc;
+  --foreground: #0f172a;
   --font-display: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
-  --font-code: "SFMono-Regular", "IBM Plex Mono", "Menlo", monospace;
 }
 
 * {
@@ -17,10 +13,7 @@
 }
 
 html {
-  background:
-    radial-gradient(circle at top left, rgba(214, 165, 79, 0.14), transparent 26%),
-    radial-gradient(circle at 80% 20%, rgba(56, 91, 110, 0.16), transparent 24%),
-    #0d0d0d;
+  background: #f8fafc;
 }
 
 body {
@@ -37,6 +30,6 @@ a {
 }
 
 ::selection {
-  background: rgba(214, 165, 79, 0.32);
-  color: #1a160e;
+  background: rgba(15, 23, 42, 0.12);
+  color: #0f172a;
 }

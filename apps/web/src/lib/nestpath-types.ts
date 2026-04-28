@@ -23,7 +23,7 @@ export type Profile = {
 export type Relationship = {
   id: string;
   agentProfileId: string;
-  buyerProfileId: string;
+  buyerProfileId: string | null;
   status: RelationshipStatus;
 };
 
@@ -62,6 +62,7 @@ export type Invite = {
   relationshipId: string;
   propertyId: string | null;
   buyerEmail: string | null;
+  buyerFullName?: string | null;
   channel: InviteChannel;
   status: InviteStatus;
   token: string;
@@ -88,6 +89,7 @@ export type PortalSnapshot = {
   viewer: Profile;
   counterparts: Profile[];
   relationship: Relationship;
+  relationshipLabel?: string;
   activeThread: ThreadDetail;
   threads: Thread[];
   properties: Property[];

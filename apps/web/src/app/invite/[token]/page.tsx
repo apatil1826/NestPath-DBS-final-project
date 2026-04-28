@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { getInviteByToken, getPropertyById, getThreadForInvite } from "@/lib/mock-data";
+import { acceptInviteAction } from "@/app/actions";
+import { syncProfileFromSession } from "@/lib/auth";
+import { getInvitePreview } from "@/lib/live-data";
 
 export default async function InvitePage({
   params,
@@ -7,7 +9,8 @@ export default async function InvitePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const invite = getInviteByToken(token);
+  const invite = await getInvitePreview(token);
+  const profile = await syncProfileFromSession();
 
   if (!invite) {
     return (
@@ -27,9 +30,6 @@ export default async function InvitePage({
       </main>
     );
   }
-
-  const property = getPropertyById(invite.propertyId);
-  const thread = getThreadForInvite(invite);
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col justify-center px-6 py-20">
@@ -51,38 +51,47 @@ export default async function InvitePage({
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
             <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Target thread</p>
             <p className="mt-3 text-2xl font-semibold text-stone-50">
-              {thread?.title ?? "General inbox"}
+              {invite.thread_title ?? "General inbox"}
             </p>
           </div>
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
             <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Property context</p>
             <p className="mt-3 text-2xl font-semibold text-stone-50">
-              {property?.title ?? "No property bound"}
+              {invite.property_title ?? "No property bound"}
             </p>
           </div>
         </div>
 
         <div className="mt-8 rounded-[32px] border border-white/10 bg-[#111111] p-6">
           <p className="text-sm text-stone-300">
-            In the live Supabase-auth flow, clicking accept would either:
+            Agent: {invite.agent_name ?? "NestPath agent"}
           </p>
-          <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-7 text-stone-300">
-            <li>Sign the buyer in with Supabase Auth if they already have an account.</li>
-            <li>Create a buyer account after auth and attach them to the relationship.</li>
-            <li>Add them to the thread participants table and open the shared inbox immediately.</li>
-          </ul>
+          {invite.buyer_email ? (
+            <p className="mt-3 text-sm text-stone-400">
+              This invite is reserved for {invite.buyer_email}.
+            </p>
+          ) : null}
           <div className="mt-6 flex flex-wrap gap-3">
+            {profile?.role === "buyer" ? (
+              <form action={acceptInviteAction}>
+                <input type="hidden" name="token" value={token} />
+                <button className="rounded-full bg-[#d6a54f] px-5 py-3 text-sm font-semibold text-[#1d180e]">
+                  Join workspace
+                </button>
+              </form>
+            ) : (
+              <Link
+                href={`/login?role=buyer&next=/invite/${token}`}
+                className="rounded-full bg-[#d6a54f] px-5 py-3 text-sm font-semibold text-[#1d180e]"
+              >
+                Sign in to accept invite
+              </Link>
+            )}
             <Link
-              href="/buyer"
-              className="rounded-full bg-[#d6a54f] px-5 py-3 text-sm font-semibold text-[#1d180e]"
-            >
-              Preview buyer portal
-            </Link>
-            <Link
-              href="/agent"
+              href="/"
               className="rounded-full border border-white/12 px-5 py-3 text-sm text-stone-200"
             >
-              Preview agent portal
+              Back home
             </Link>
           </div>
         </div>

@@ -187,12 +187,29 @@ function MessageBubble({
 }
 
 function Composer() {
+  return null;
+}
+
+function MessageComposer({
+  threadId,
+  sendMessageAction,
+  workspacePath,
+}: {
+  threadId: string;
+  sendMessageAction: (formData: FormData) => Promise<void>;
+  workspacePath: string;
+}) {
   return (
-    <div className="rounded-[26px] border border-slate-200 bg-slate-50 p-4">
-      <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-400">
-        Type a message here. In the live Supabase version, this composer will insert into
-        `messages` and subscribe to realtime updates on the selected thread.
-      </div>
+    <form action={sendMessageAction} className="rounded-[26px] border border-slate-200 bg-slate-50 p-4">
+      <input type="hidden" name="threadId" value={threadId} />
+      <input type="hidden" name="redirectTo" value={workspacePath} />
+      <textarea
+        name="body"
+        required
+        rows={4}
+        placeholder="Send a message to this relationship..."
+        className="w-full rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-slate-900"
+      />
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           <span className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs uppercase tracking-[0.14em] text-slate-500">
@@ -206,7 +223,7 @@ function Composer() {
           Send
         </button>
       </div>
-    </div>
+    </form>
   );
 }
 
@@ -215,24 +232,19 @@ function SummaryRail({
   properties,
   actionItems,
   viewer,
+  createRelationshipInviteAction,
 }: {
   invites: Invite[];
   properties: Property[];
   actionItems: ActionItem[];
   viewer: Profile;
+  createRelationshipInviteAction?: (formData: FormData) => Promise<void>;
 }) {
   return (
     <div className="space-y-4">
       <section className="rounded-[28px] border border-slate-200 bg-white p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Summary</p>
-            <h3 className="mt-2 text-lg font-semibold text-slate-900">What needs attention</h3>
-          </div>
-          <button className="rounded-full border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-50">
-            New task
-          </button>
-        </div>
+        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Summary</p>
+        <h3 className="mt-2 text-lg font-semibold text-slate-900">What needs attention</h3>
         <div className="mt-4 space-y-3">
           {actionItems.map((item) => (
             <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -271,15 +283,36 @@ function SummaryRail({
       </section>
 
       <section className="rounded-[28px] border border-slate-200 bg-white p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Invites</p>
-            <h3 className="mt-2 text-lg font-semibold text-slate-900">Connection options</h3>
-          </div>
-          <button className="rounded-full border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-50">
-            Invite buyer
-          </button>
+        <div id="invite-panel">
+          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Invites</p>
+          <h3 className="mt-2 text-lg font-semibold text-slate-900">Connection options</h3>
         </div>
+        {viewer.role === "agent" && createRelationshipInviteAction ? (
+          <form action={createRelationshipInviteAction} className="mt-4 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <input
+              name="buyerFullName"
+              placeholder="Buyer name"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900"
+            />
+            <input
+              name="buyerEmail"
+              type="email"
+              placeholder="buyer@example.com"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900"
+            />
+            <select
+              name="channel"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900"
+              defaultValue="email"
+            >
+              <option value="email">Send email invite</option>
+              <option value="link">Create shareable link</option>
+            </select>
+            <button className="rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">
+              Create new relationship
+            </button>
+          </form>
+        ) : null}
         <div className="mt-4 space-y-3">
           {invites.map((invite) => (
             <div key={invite.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -313,14 +346,22 @@ export function PortalShell({
   description,
   snapshot,
   toolbar,
+  sendMessageAction,
+  workspacePath,
+  createRelationshipInviteAction,
 }: {
   heading: string;
   kicker: string;
   description: string;
   snapshot: PortalSnapshot;
   toolbar?: ReactNode;
+  sendMessageAction?: (formData: FormData) => Promise<void>;
+  workspacePath: string;
+  createRelationshipInviteAction?: (formData: FormData) => Promise<void>;
 }) {
-  const counterpartLabel = snapshot.counterparts.map((profile) => profile.fullName).join(", ");
+  const counterpartLabel =
+    snapshot.relationshipLabel ||
+    snapshot.counterparts.map((profile) => profile.fullName).join(", ");
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[1680px] gap-6 px-4 py-5 sm:px-6 lg:px-8">
@@ -367,9 +408,12 @@ export function PortalShell({
               >
                 Buyer
               </Link>
-              <button className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">
+              <Link
+                href="#invite-panel"
+                className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+              >
                 Invite buyer
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -427,9 +471,12 @@ export function PortalShell({
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Inbox</p>
                 <h2 className="mt-2 text-xl font-semibold text-slate-900">Relationships</h2>
               </div>
-              <button className="rounded-full border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-50">
+              <Link
+                href="#invite-panel"
+                className="rounded-full border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+              >
                 New
-              </button>
+              </Link>
             </div>
 
             <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
@@ -499,14 +546,23 @@ export function PortalShell({
               ))}
             </div>
 
-            <Composer />
-          </section>
+              {sendMessageAction ? (
+                <MessageComposer
+                  threadId={snapshot.activeThread.id}
+                  sendMessageAction={sendMessageAction}
+                  workspacePath={workspacePath}
+                />
+              ) : (
+                <Composer />
+              )}
+            </section>
 
           <SummaryRail
             invites={snapshot.invites}
             properties={snapshot.properties}
             actionItems={snapshot.actionItems}
             viewer={snapshot.viewer}
+            createRelationshipInviteAction={createRelationshipInviteAction}
           />
         </section>
       </div>

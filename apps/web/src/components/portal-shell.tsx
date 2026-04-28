@@ -340,6 +340,12 @@ export function PortalShell({
           <div className="flex flex-wrap gap-3">
             {toolbar}
             <Link
+              href="/"
+              className="rounded-full border border-white/12 px-5 py-3 text-sm text-stone-200 transition hover:border-white/20 hover:text-stone-50"
+            >
+              Home
+            </Link>
+            <Link
               href="/agent"
               className="rounded-full border border-white/12 px-5 py-3 text-sm text-stone-200 transition hover:border-white/20 hover:text-stone-50"
             >
@@ -371,6 +377,11 @@ export function PortalShell({
           />
         </div>
       </header>
+
+      <div className="rounded-[22px] border border-[#d6a54f]/25 bg-[#1a1712] px-5 py-4 text-sm text-stone-300">
+        Public preview mode is enabled so the full product is visible while we finish live auth and
+        realtime data wiring.
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)_340px]">
         <ThreadList threads={snapshot.threads} activeThreadId={snapshot.activeThread.id} />

@@ -4,7 +4,7 @@ import { getSupabaseEnv } from "@/lib/supabase/env";
 
 export async function updateSession(request: NextRequest) {
   const env = getSupabaseEnv();
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request,
   });
 

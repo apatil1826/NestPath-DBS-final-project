@@ -18,7 +18,6 @@ function getSafeRedirectPath(next: string | null | undefined, fallback: string) 
 }
 
 function getRoleHome() {
-  // Agent portal is the only supported UI route right now.
   return "/agent";
 }
 
@@ -32,25 +31,51 @@ export async function syncProfileFromSession() {
     return null;
   }
 
-  // We currently support an agent-only portal. Default everyone to agent.
-  const role: ProfileRole = "agent";
   const fullName =
     user.user_metadata.full_name ||
     user.user_metadata.name ||
     user.email.split("@")[0] ||
     "NestPath User";
 
+  const { data: existingProfiles, error: existingError } = await supabase
+    .from("profiles")
+    .select("id, role, full_name, email")
+    .eq("id", user.id)
+    .limit(1);
+
+  if (existingError) {
+    throw new Error(`Unable to load profile: ${existingError.message}`);
+  }
+
+  const existing = (existingProfiles as DbProfile[] | null)?.[0];
+
+  if (existing) {
+    // Keep role stable; let the user change it via settings (profiles table).
+    if (existing.full_name !== fullName || existing.email !== user.email) {
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ full_name: fullName, email: user.email })
+        .eq("id", user.id);
+
+      if (updateError) {
+        throw new Error(`Unable to sync profile: ${updateError.message}`);
+      }
+    }
+
+    return existing;
+  }
+
+  const metadataRole = user.user_metadata.role;
+  const role: ProfileRole = metadataRole === "buyer" ? "buyer" : "agent";
+
   const { data, error } = await supabase
     .from("profiles")
-    .upsert(
-      {
-        id: user.id,
-        role,
-        full_name: fullName,
-        email: user.email,
-      },
-      { onConflict: "id" },
-    )
+    .insert({
+      id: user.id,
+      role,
+      full_name: fullName,
+      email: user.email,
+    })
     .select("id, role, full_name, email")
     .single<DbProfile>();
 

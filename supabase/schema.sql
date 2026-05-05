@@ -16,6 +16,7 @@ create type public.invite_channel as enum ('email', 'link');
 create type public.invite_status as enum ('pending', 'accepted', 'revoked', 'expired');
 create type public.message_kind as enum ('user', 'system');
 create type public.action_item_status as enum ('open', 'in_progress', 'done');
+create type public.client_status as enum ('active', 'archived');
 
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
@@ -113,6 +114,24 @@ create table public.action_items (
   status public.action_item_status not null default 'open',
   created_at timestamptz not null default timezone('utc', now())
 );
+
+create table public.clients (
+  id uuid primary key default gen_random_uuid(),
+  agent_profile_id uuid not null references public.profiles (id) on delete cascade,
+  buyer_profile_id uuid references public.profiles (id) on delete set null,
+  full_name text not null,
+  email citext,
+  phone text,
+  status public.client_status not null default 'active',
+  notes text,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  unique (agent_profile_id, email)
+);
+
+create trigger set_clients_updated_at
+before update on public.clients
+for each row execute function public.set_row_updated_at();
 
 create or replace function public.set_row_updated_at()
 returns trigger
@@ -292,6 +311,7 @@ alter table public.thread_participants enable row level security;
 alter table public.invites enable row level security;
 alter table public.messages enable row level security;
 alter table public.action_items enable row level security;
+alter table public.clients enable row level security;
 
 create policy "profiles are viewable by relationship members"
 on public.profiles
@@ -422,5 +442,30 @@ for all
 to authenticated
 using (public.is_relationship_member(relationship_id))
 with check (public.is_relationship_member(relationship_id));
+
+create policy "agents can read their clients"
+on public.clients
+for select
+to authenticated
+using (agent_profile_id = auth.uid());
+
+create policy "agents can create clients"
+on public.clients
+for insert
+to authenticated
+with check (agent_profile_id = auth.uid());
+
+create policy "agents can update their clients"
+on public.clients
+for update
+to authenticated
+using (agent_profile_id = auth.uid())
+with check (agent_profile_id = auth.uid());
+
+create policy "agents can delete their clients"
+on public.clients
+for delete
+to authenticated
+using (agent_profile_id = auth.uid());
 
 alter publication supabase_realtime add table public.messages;

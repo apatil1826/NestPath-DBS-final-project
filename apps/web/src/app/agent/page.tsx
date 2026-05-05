@@ -7,14 +7,14 @@ import { getWorkspaceSnapshotForProfile } from "@/lib/live-data";
 export default async function AgentPortalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ invite?: string }>;
+  searchParams: Promise<{ invite?: string; error?: string }>;
 }) {
   const params = await searchParams;
   const profile = await requireAuthenticatedProfile("agent");
   const snapshot = await getWorkspaceSnapshotForProfile(profile);
 
   if (!snapshot) {
-    return <AgentEmptyState inviteLink={params.invite} />;
+    return <AgentEmptyState inviteLink={params.invite} errorCode={params.error} />;
   }
 
   return (

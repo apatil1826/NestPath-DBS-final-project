@@ -2,9 +2,18 @@ import { createRelationshipInviteAction } from "@/app/actions";
 
 export function AgentEmptyState({
   inviteLink,
+  errorCode,
 }: {
   inviteLink?: string;
+  errorCode?: string;
 }) {
+  const errorMessage =
+    errorCode === "buyer-email-required"
+      ? "Buyer email is required when using the email invite option."
+      : errorCode === "invite-create-failed"
+        ? "We couldn’t create that invite. This is usually an RLS/policy issue or missing Supabase env vars in Vercel."
+        : null;
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[1100px] flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8">
       <section className="rounded-[36px] border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
@@ -16,6 +25,13 @@ export function AgentEmptyState({
           This is now live data. Creating a relationship here writes directly to Supabase, creates a
           direct thread, and generates a real invite link for the buyer.
         </p>
+
+        {errorMessage ? (
+          <div className="mt-6 rounded-[24px] border border-rose-200 bg-rose-50 p-5">
+            <p className="text-sm font-semibold text-rose-800">Something went wrong</p>
+            <p className="mt-2 text-sm leading-6 text-rose-700">{errorMessage}</p>
+          </div>
+        ) : null}
 
         {inviteLink ? (
           <div className="mt-6 rounded-[24px] border border-emerald-200 bg-emerald-50 p-5">

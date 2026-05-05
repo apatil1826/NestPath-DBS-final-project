@@ -10,86 +10,96 @@ function cleanValue(value: FormDataEntryValue | null) {
 }
 
 function getBaseUrl() {
-  return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL;
+  if (explicit) return explicit;
+
+  // Vercel provides the hostname without scheme.
+  const vercelUrl = process.env.VERCEL_URL;
+  if (vercelUrl) return `https://${vercelUrl}`;
+
+  return "http://localhost:3000";
 }
 
 export async function createRelationshipInviteAction(formData: FormData) {
-  const profile = await requireAuthenticatedProfile("agent");
-  const supabase = await createSupabaseServerClient();
+  try {
+    const profile = await requireAuthenticatedProfile("agent");
+    const supabase = await createSupabaseServerClient();
 
-  const buyerEmail = cleanValue(formData.get("buyerEmail")).toLowerCase();
-  const buyerFullName = cleanValue(formData.get("buyerFullName"));
-  const channelValue = cleanValue(formData.get("channel"));
-  const channel = channelValue === "link" ? "link" : "email";
+    const buyerEmail = cleanValue(formData.get("buyerEmail")).toLowerCase();
+    const buyerFullName = cleanValue(formData.get("buyerFullName"));
+    const channelValue = cleanValue(formData.get("channel"));
+    const channel = channelValue === "link" ? "link" : "email";
 
-  if (channel === "email" && !buyerEmail) {
-    redirect("/agent?error=buyer-email-required");
-  }
+    if (channel === "email" && !buyerEmail) {
+      redirect("/agent?error=buyer-email-required");
+    }
 
-  const { data: relationship, error: relationshipError } = await supabase
-    .from("agent_relationships")
-    .insert({
-      agent_profile_id: profile.id,
-      buyer_profile_id: null,
-      status: "invited",
-    })
-    .select("id")
-    .single<{ id: string }>();
+    const { data: relationship, error: relationshipError } = await supabase
+      .from("agent_relationships")
+      .insert({
+        agent_profile_id: profile.id,
+        buyer_profile_id: null,
+        status: "invited",
+      })
+      .select("id")
+      .single<{ id: string }>();
 
-  if (relationshipError || !relationship) {
-    throw new Error(`Unable to create relationship: ${relationshipError?.message}`);
-  }
+    if (relationshipError || !relationship) {
+      throw new Error(`Unable to create relationship: ${relationshipError?.message}`);
+    }
 
-  const directThreadTitle = buyerFullName || buyerEmail || "New buyer relationship";
+    const directThreadTitle = buyerFullName || buyerEmail || "New buyer relationship";
 
-  const { data: directThread, error: directThreadError } = await supabase
-    .from("threads")
-    .insert({
+    const { data: directThread, error: directThreadError } = await supabase
+      .from("threads")
+      .insert({
+        relationship_id: relationship.id,
+        property_id: null,
+        created_by_profile_id: profile.id,
+        kind: "direct",
+        title: directThreadTitle,
+        summary: "Shared relationship conversation",
+      })
+      .select("id")
+      .single<{ id: string }>();
+
+    if (directThreadError || !directThread) {
+      throw new Error(`Unable to create direct thread: ${directThreadError?.message}`);
+    }
+
+    const { error: participantError } = await supabase.from("thread_participants").insert({
+      thread_id: directThread.id,
+      profile_id: profile.id,
+    });
+
+    if (participantError) {
+      throw new Error(`Unable to add agent to thread: ${participantError.message}`);
+    }
+
+    const token = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { error: inviteError } = await supabase.from("invites").insert({
       relationship_id: relationship.id,
       property_id: null,
       created_by_profile_id: profile.id,
-      kind: "direct",
-      title: directThreadTitle,
-      summary: "Shared relationship conversation",
-    })
-    .select("id")
-    .single<{ id: string }>();
+      buyer_email: channel === "email" ? buyerEmail : null,
+      buyer_full_name: buyerFullName || null,
+      token,
+      channel,
+      expires_at: expiresAt,
+    });
 
-  if (directThreadError || !directThread) {
-    throw new Error(`Unable to create direct thread: ${directThreadError?.message}`);
+    if (inviteError) {
+      throw new Error(`Unable to create invite: ${inviteError.message}`);
+    }
+
+    revalidatePath("/agent");
+    redirect(`/agent?invite=${encodeURIComponent(`${getBaseUrl()}/invite/${token}`)}`);
+  } catch (error) {
+    console.error("createRelationshipInviteAction failed", error);
+    redirect("/agent?error=invite-create-failed");
   }
-
-  const { error: participantError } = await supabase.from("thread_participants").insert({
-    thread_id: directThread.id,
-    profile_id: profile.id,
-  });
-
-  if (participantError) {
-    throw new Error(`Unable to add agent to thread: ${participantError.message}`);
-  }
-
-  const token = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-
-  const { error: inviteError } = await supabase.from("invites").insert({
-    relationship_id: relationship.id,
-    property_id: null,
-    created_by_profile_id: profile.id,
-    buyer_email: channel === "email" ? buyerEmail : null,
-    buyer_full_name: buyerFullName || null,
-    token,
-    channel,
-    expires_at: expiresAt,
-  });
-
-  if (inviteError) {
-    throw new Error(`Unable to create invite: ${inviteError.message}`);
-  }
-
-  revalidatePath("/agent");
-  redirect(
-    `/agent?invite=${encodeURIComponent(`${getBaseUrl()}/invite/${token}`)}`,
-  );
 }
 
 export async function sendMessageAction(formData: FormData) {

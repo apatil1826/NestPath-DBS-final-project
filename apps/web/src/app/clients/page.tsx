@@ -7,7 +7,14 @@ import { BrowserProfile, getOrCreateBrowserProfile } from "@/lib/browser-auth";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 
-type ClientRecord = {
+type BuyerDirectoryEntry = {
+  id: string;
+  full_name: string;
+  email: string;
+  role: "buyer";
+};
+
+type ManualClientRecord = {
   id: string;
   full_name: string;
   email: string | null;
@@ -17,10 +24,20 @@ type ClientRecord = {
   created_at: string;
 };
 
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 export default function ClientsPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<BrowserProfile | null>(null);
-  const [clients, setClients] = useState<ClientRecord[]>([]);
+  const [buyers, setBuyers] = useState<BuyerDirectoryEntry[]>([]);
+  const [manualClients, setManualClients] = useState<ManualClientRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -47,23 +64,39 @@ export default function ClientsPage() {
         }
 
         const supabase = createSupabaseBrowserClient();
-        const { data, error } = await supabase
-          .from("clients")
-          .select("id, full_name, email, phone, status, notes, created_at")
-          .eq("agent_profile_id", resolvedProfile.id)
-          .order("created_at", { ascending: false });
+        const [{ data: buyerData, error: buyerError }, { data: manualData, error: manualError }] =
+          await Promise.all([
+            supabase
+              .from("profiles")
+              .select("id, full_name, email, role")
+              .eq("role", "buyer")
+              .neq("id", resolvedProfile.id)
+              .order("full_name", { ascending: true }),
+            supabase
+              .from("clients")
+              .select("id, full_name, email, phone, status, notes, created_at")
+              .eq("agent_profile_id", resolvedProfile.id)
+              .order("created_at", { ascending: false }),
+          ]);
 
-        if (error) {
-          throw error;
+        if (buyerError) {
+          throw buyerError;
+        }
+
+        if (manualError) {
+          throw manualError;
         }
 
         if (!cancelled) {
           setProfile(resolvedProfile);
-          setClients((data as ClientRecord[] | null) ?? []);
+          setBuyers((buyerData as BuyerDirectoryEntry[] | null) ?? []);
+          setManualClients((manualData as ManualClientRecord[] | null) ?? []);
         }
       } catch (loadError) {
         if (!cancelled) {
-          setErrorMessage(loadError instanceof Error ? loadError.message : "Unable to load clients.");
+          setErrorMessage(
+            loadError instanceof Error ? loadError.message : "Unable to load client directory.",
+          );
         }
       } finally {
         if (!cancelled) {
@@ -79,7 +112,7 @@ export default function ClientsPage() {
     };
   }, [router]);
 
-  async function refreshClients(agentId: string) {
+  async function refreshManualClients(agentId: string) {
     const supabase = createSupabaseBrowserClient();
     const { data, error } = await supabase
       .from("clients")
@@ -91,10 +124,10 @@ export default function ClientsPage() {
       throw error;
     }
 
-    setClients((data as ClientRecord[] | null) ?? []);
+    setManualClients((data as ManualClientRecord[] | null) ?? []);
   }
 
-  async function handleCreateClient(event: React.FormEvent<HTMLFormElement>) {
+  async function handleCreateManualClient(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!profile) {
@@ -128,17 +161,17 @@ export default function ClientsPage() {
       setEmail("");
       setPhone("");
       setNotes("");
-      await refreshClients(profile.id);
+      await refreshManualClients(profile.id);
     } catch (createError) {
       setErrorMessage(
-        createError instanceof Error ? createError.message : "Unable to create client.",
+        createError instanceof Error ? createError.message : "Unable to create manual client.",
       );
     } finally {
       setSaving(false);
     }
   }
 
-  async function toggleClientStatus(client: ClientRecord) {
+  async function toggleManualClientStatus(client: ManualClientRecord) {
     if (!profile) {
       return;
     }
@@ -159,10 +192,10 @@ export default function ClientsPage() {
         throw error;
       }
 
-      await refreshClients(profile.id);
+      await refreshManualClients(profile.id);
     } catch (updateError) {
       setErrorMessage(
-        updateError instanceof Error ? updateError.message : "Unable to update client.",
+        updateError instanceof Error ? updateError.message : "Unable to update manual client.",
       );
     } finally {
       setSaving(false);
@@ -173,7 +206,7 @@ export default function ClientsPage() {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-[1300px] items-center justify-center px-4 py-6 sm:px-6 lg:px-10">
         <div className="rounded-[30px] border border-slate-200 bg-white p-8 shadow-sm">
-          <p className="text-sm text-slate-500">Loading your client directory...</p>
+          <p className="text-sm text-slate-500">Loading the client directory...</p>
         </div>
       </main>
     );
@@ -192,7 +225,8 @@ export default function ClientsPage() {
             Client directory
           </h1>
           <p className="mt-3 max-w-2xl text-base leading-8 text-slate-500">
-            Track who you&rsquo;re working with. This becomes the entry point for buyer messaging.
+            This page now does two jobs: it shows every NestPath user currently tagged as a buyer,
+            and it gives you an agent-specific list for your own manually added clients.
           </p>
         </div>
 
@@ -220,16 +254,79 @@ export default function ClientsPage() {
         </section>
       ) : null}
 
-      <section className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
-        <div className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Add client</p>
-          <h2 className="mt-3 text-2xl font-semibold text-slate-900">Create a new client</h2>
-          <p className="mt-3 text-sm leading-7 text-slate-500">
-            This stores an agent-owned directory record now. Next, we can connect that client to
-            a buyer account and thread.
+      <section className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Directory summary</p>
+          <h2 className="mt-3 text-3xl font-semibold text-slate-900">{buyers.length}</h2>
+          <p className="mt-2 text-sm leading-7 text-slate-500">
+            buyer accounts currently available in NestPath
           </p>
 
-          <form onSubmit={handleCreateClient} className="mt-6 space-y-4">
+          <div className="mt-6 rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-semibold text-slate-900">Manual list</p>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              You also have <span className="font-semibold text-slate-900">{manualClients.length}</span>{" "}
+              manual client {manualClients.length === 1 ? "record" : "records"} tied specifically
+              to your agent account.
+            </p>
+          </div>
+        </aside>
+
+        <section className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Buyer accounts</p>
+              <h2 className="mt-3 text-2xl font-semibold text-slate-900">
+                {buyers.length} buyer{buyers.length === 1 ? "" : "s"}
+              </h2>
+            </div>
+          </div>
+
+          {buyers.length ? (
+            <div className="mt-6 grid gap-3">
+              {buyers.map((buyer) => (
+                <div
+                  key={buyer.id}
+                  className="flex flex-wrap items-center justify-between gap-4 rounded-[22px] border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+                      {getInitials(buyer.full_name)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{buyer.full_name}</p>
+                      <p className="mt-1 text-sm text-slate-500">{buyer.email}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">
+                    Buyer
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-8 rounded-[24px] border border-slate-200 bg-slate-50 p-6">
+              <p className="text-sm font-semibold text-slate-900">No buyers yet</p>
+              <p className="mt-2 text-sm leading-7 text-slate-500">
+                As soon as other users switch their settings to buyer mode, they&rsquo;ll appear
+                here.
+              </p>
+            </div>
+          )}
+        </section>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
+        <div className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Manual additions</p>
+          <h2 className="mt-3 text-2xl font-semibold text-slate-900">Add a private client record</h2>
+          <p className="mt-3 text-sm leading-7 text-slate-500">
+            Use this when someone matters to your business but isn&rsquo;t yet a buyer account in the
+            app, or when you want an agent-specific note card separate from the global buyer list.
+          </p>
+
+          <form onSubmit={handleCreateManualClient} className="mt-6 space-y-4">
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-slate-700">Full name</span>
               <input
@@ -275,7 +372,7 @@ export default function ClientsPage() {
             </label>
 
             <button className="w-full rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-70">
-              {saving ? "Saving..." : "Add client"}
+              {saving ? "Saving..." : "Add manual client"}
             </button>
           </form>
         </div>
@@ -283,14 +380,18 @@ export default function ClientsPage() {
         <div className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Your clients</p>
-              <h2 className="mt-3 text-2xl font-semibold text-slate-900">{clients.length} total</h2>
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                Manual client records
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold text-slate-900">
+                {manualClients.length} record{manualClients.length === 1 ? "" : "s"}
+              </h2>
             </div>
           </div>
 
-          {clients.length ? (
+          {manualClients.length ? (
             <div className="mt-6 grid gap-3">
-              {clients.map((client) => (
+              {manualClients.map((client) => (
                 <div
                   key={client.id}
                   className="rounded-[22px] border border-slate-200 bg-slate-50 p-4"
@@ -299,7 +400,8 @@ export default function ClientsPage() {
                     <div>
                       <p className="text-sm font-semibold text-slate-900">{client.full_name}</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        {[client.email, client.phone].filter(Boolean).join(" • ") || "No contact details"}
+                        {[client.email, client.phone].filter(Boolean).join(" • ") ||
+                          "No contact details"}
                       </p>
                       {client.notes ? (
                         <p className="mt-3 text-sm leading-6 text-slate-600">{client.notes}</p>
@@ -308,7 +410,7 @@ export default function ClientsPage() {
 
                     <button
                       type="button"
-                      onClick={() => toggleClientStatus(client)}
+                      onClick={() => toggleManualClientStatus(client)}
                       className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
                     >
                       {client.status === "archived" ? "Restore" : "Archive"}
@@ -319,10 +421,10 @@ export default function ClientsPage() {
             </div>
           ) : (
             <div className="mt-8 rounded-[24px] border border-slate-200 bg-slate-50 p-6">
-              <p className="text-sm font-semibold text-slate-900">No clients yet</p>
+              <p className="text-sm font-semibold text-slate-900">No manual additions yet</p>
               <p className="mt-2 text-sm leading-7 text-slate-500">
-                Add your first client to start building the directory. This is the foundation for
-                messaging.
+                Add the first one when someone should live in your personal client list even if they
+                don&rsquo;t belong in the global buyer directory for your active conversations yet.
               </p>
             </div>
           )}

@@ -47,16 +47,46 @@ export function SignInCard({
           return;
         }
 
+        const bridge = await fetch("/auth/session", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          }),
+        });
+
+        if (!bridge.ok) {
+          throw new Error("Unable to persist session for server routes.");
+        }
+
         window.location.assign(nextPath);
         return;
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
 
       if (error) throw error;
+
+      if (!data.session) {
+        throw new Error("Signed in but no session was returned.");
+      }
+
+      const bridge = await fetch("/auth/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        }),
+      });
+
+      if (!bridge.ok) {
+        throw new Error("Unable to persist session for server routes.");
+      }
 
       window.location.assign(nextPath);
     } catch (error) {

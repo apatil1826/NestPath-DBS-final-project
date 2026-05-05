@@ -11,7 +11,8 @@ export function createSupabaseBrowserClient() {
       cookieOptions: {
         path: "/",
         sameSite: "lax",
-        secure: true,
+        // Secure cookies won't be set over http://localhost.
+        secure: typeof window !== "undefined" ? window.location.protocol === "https:" : false,
       },
     },
   );

@@ -15,7 +15,7 @@ export async function updateSession(request: NextRequest) {
       cookieOptions: {
         path: "/",
         sameSite: "lax",
-        secure: true,
+        secure: process.env.NODE_ENV === "production",
       },
       cookies: {
         getAll() {

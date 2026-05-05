@@ -13,7 +13,7 @@ export async function createSupabaseServerClient() {
       cookieOptions: {
         path: "/",
         sameSite: "lax",
-        secure: true,
+        secure: process.env.NODE_ENV === "production",
       },
       cookies: {
         getAll() {

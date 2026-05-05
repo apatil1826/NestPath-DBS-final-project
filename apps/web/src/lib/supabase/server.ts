@@ -10,6 +10,11 @@ export async function createSupabaseServerClient() {
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     {
+      cookieOptions: {
+        path: "/",
+        sameSite: "lax",
+        secure: true,
+      },
       cookies: {
         getAll() {
           return cookieStore.getAll();

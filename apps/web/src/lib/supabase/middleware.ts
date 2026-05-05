@@ -12,6 +12,11 @@ export async function updateSession(request: NextRequest) {
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     {
+      cookieOptions: {
+        path: "/",
+        sameSite: "lax",
+        secure: true,
+      },
       cookies: {
         getAll() {
           return request.cookies.getAll();

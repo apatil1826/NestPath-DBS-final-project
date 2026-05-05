@@ -60,6 +60,13 @@ export function SignInCard({
           throw new Error("Unable to persist session for server routes.");
         }
 
+        const bridgeJson = (await bridge.json().catch(() => null)) as
+          | { ok?: boolean; cookies_set?: string[] }
+          | null;
+        if (!bridgeJson?.cookies_set?.length) {
+          throw new Error("Session bridge did not set any cookies. Check Vercel logs for /auth/session.");
+        }
+
         window.location.assign(nextPath);
         return;
       }
@@ -86,6 +93,13 @@ export function SignInCard({
 
       if (!bridge.ok) {
         throw new Error("Unable to persist session for server routes.");
+      }
+
+      const bridgeJson = (await bridge.json().catch(() => null)) as
+        | { ok?: boolean; cookies_set?: string[] }
+        | null;
+      if (!bridgeJson?.cookies_set?.length) {
+        throw new Error("Session bridge did not set any cookies. Check Vercel logs for /auth/session.");
       }
 
       window.location.assign(nextPath);

@@ -15,6 +15,9 @@ export async function createSupabaseServerClient() {
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
       },
+      auth: {
+        storageKey: "sb-auth-token",
+      },
       cookies: {
         getAll() {
           return cookieStore.getAll();

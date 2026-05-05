@@ -30,8 +30,8 @@ export default async function LoginPage({
               Sign in to the agent portal.
             </h1>
             <p className="mt-6 max-w-3xl text-lg leading-9 text-slate-500">
-              Supabase Auth handles identity via magic link. After sign-in, you’ll land in the
-              agent workspace.
+              Supabase Auth handles identity via email + password. After sign-in, you’ll land in the
+              portal.
             </p>
           </div>
 

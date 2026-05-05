@@ -12,7 +12,9 @@ export function SignInCard({
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"sign_in" | "sign_up">("sign_in");
-  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "submitting" | "success" | "error" | "needs_confirmation"
+  >("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -25,28 +27,37 @@ export function SignInCard({
       const trimmedEmail = email.trim();
       const trimmedPassword = password;
 
-      const { error } =
-        mode === "sign_up"
-          ? await supabase.auth.signUp({
-              email: trimmedEmail,
-              password: trimmedPassword,
-              options: {
-                data: {
-                  role: "agent",
-                  full_name: fullName.trim(),
-                },
-              },
-            })
-          : await supabase.auth.signInWithPassword({
-              email: trimmedEmail,
-              password: trimmedPassword,
-            });
+      if (mode === "sign_up") {
+        const { data, error } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password: trimmedPassword,
+          options: {
+            data: {
+              role: "agent",
+              full_name: fullName.trim(),
+            },
+          },
+        });
 
-      if (error) {
-        throw error;
+        if (error) throw error;
+
+        // If email confirmations are enabled, Supabase creates the user but returns no session.
+        if (!data.session) {
+          setStatus("needs_confirmation");
+          return;
+        }
+
+        window.location.assign(nextPath);
+        return;
       }
 
-      // After password sign-in the session is already set in cookies/localStorage.
+      const { error } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password: trimmedPassword,
+      });
+
+      if (error) throw error;
+
       window.location.assign(nextPath);
     } catch (error) {
       setStatus("error");
@@ -164,6 +175,17 @@ export function SignInCard({
         <p className="mt-4 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {errorMessage}
         </p>
+      ) : null}
+
+      {status === "needs_confirmation" ? (
+        <div className="mt-4 rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="font-semibold">Account created, but not signed in yet.</p>
+          <p className="mt-1 leading-6">
+            Your Supabase project is likely requiring email confirmation, so no session is issued on
+            sign-up. If you want zero emails during development, disable confirmations in Supabase:
+            Auth → Providers → Email.
+          </p>
+        </div>
       ) : null}
     </div>
   );

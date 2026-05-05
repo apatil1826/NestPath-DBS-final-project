@@ -4,8 +4,12 @@ import { getSupabaseEnv } from "@/lib/supabase/env";
 
 export async function POST(request: NextRequest) {
   const env = getSupabaseEnv();
-  const response = NextResponse.json({ ok: true }, { headers: { "cache-control": "no-store" } });
   const cookiesSet: string[] = [];
+  const pendingCookies: Array<{
+    name: string;
+    value: string;
+    options?: Parameters<NextResponse["cookies"]["set"]>[2];
+  }> = [];
 
   const supabase = createServerClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -27,7 +31,7 @@ export async function POST(request: NextRequest) {
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
             cookiesSet.push(name);
-            response.cookies.set(name, value, options);
+            pendingCookies.push({ name, value, options });
           });
         },
       },
@@ -54,8 +58,14 @@ export async function POST(request: NextRequest) {
   // Force a read to ensure any auth state change flushes cookie storage.
   await supabase.auth.getUser();
 
-  return NextResponse.json(
+  const response = NextResponse.json(
     { ok: true, cookies_set: cookiesSet },
     { headers: { "cache-control": "no-store" } },
   );
+
+  pendingCookies.forEach(({ name, value, options }) => {
+    response.cookies.set(name, value, options);
+  });
+
+  return response;
 }

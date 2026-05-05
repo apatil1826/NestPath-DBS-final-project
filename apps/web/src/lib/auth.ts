@@ -17,8 +17,9 @@ function getSafeRedirectPath(next: string | null | undefined, fallback: string) 
   return next;
 }
 
-function getRoleHome(role: ProfileRole) {
-  return role === "agent" ? "/agent" : "/buyer";
+function getRoleHome() {
+  // Agent portal is the only supported UI route right now.
+  return "/agent";
 }
 
 export async function syncProfileFromSession() {
@@ -31,8 +32,8 @@ export async function syncProfileFromSession() {
     return null;
   }
 
-  const metadataRole = user.user_metadata.role;
-  const role: ProfileRole = metadataRole === "agent" ? "agent" : "buyer";
+  // We currently support an agent-only portal. Default everyone to agent.
+  const role: ProfileRole = "agent";
   const fullName =
     user.user_metadata.full_name ||
     user.user_metadata.name ||
@@ -64,12 +65,12 @@ export async function requireAuthenticatedProfile(expectedRole?: ProfileRole) {
   const profile = await syncProfileFromSession();
 
   if (!profile) {
-    const fallback = expectedRole ? getRoleHome(expectedRole) : "/";
+    const fallback = expectedRole ? getRoleHome() : "/agent";
     redirect(`/login?next=${encodeURIComponent(fallback)}`);
   }
 
   if (expectedRole && profile.role !== expectedRole) {
-    redirect(getRoleHome(profile.role));
+    redirect(getRoleHome());
   }
 
   return profile;
@@ -77,11 +78,11 @@ export async function requireAuthenticatedProfile(expectedRole?: ProfileRole) {
 
 export async function getCurrentUserRoleRedirect(next: string | null | undefined) {
   const profile = await syncProfileFromSession();
-  const fallback = profile ? getRoleHome(profile.role) : "/";
+  const fallback = profile ? getRoleHome() : "/";
 
   return getSafeRedirectPath(next, fallback);
 }
 
-export function resolveNextPath(next: string | null | undefined, role: ProfileRole) {
-  return getSafeRedirectPath(next, getRoleHome(role));
+export function resolveNextPath(next: string | null | undefined) {
+  return getSafeRedirectPath(next, getRoleHome());
 }

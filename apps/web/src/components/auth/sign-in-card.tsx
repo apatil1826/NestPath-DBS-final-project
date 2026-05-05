@@ -2,16 +2,12 @@
 
 import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { ProfileRole } from "@/lib/nestpath-types";
 
 export function SignInCard({
-  defaultRole,
   nextPath,
 }: {
-  defaultRole: ProfileRole;
   nextPath: string;
 }) {
-  const [role, setRole] = useState<ProfileRole>(defaultRole);
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "sent" | "error">("idle");
@@ -32,7 +28,7 @@ export function SignInCard({
         options: {
           emailRedirectTo: redirectUrl.toString(),
           data: {
-            role,
+            role: "agent",
             full_name: fullName,
           },
         },
@@ -54,44 +50,11 @@ export function SignInCard({
       <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Supabase auth</p>
       <h2 className="mt-3 text-2xl font-semibold text-slate-900">Request a magic link</h2>
       <p className="mt-3 text-sm leading-7 text-slate-500">
-        This first live auth flow uses email magic links so an agent or buyer can enter the product
-        without managing passwords during early development.
+        This live auth flow uses email magic links so an agent can enter without managing passwords
+        during early development.
       </p>
 
       <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => setRole("agent")}
-            className={[
-              "rounded-[22px] border px-4 py-4 text-left transition",
-              role === "agent"
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
-            ].join(" ")}
-          >
-            <p className="text-sm font-semibold">Agent</p>
-            <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400">
-              Dashboard + buyer threads
-            </p>
-          </button>
-          <button
-            type="button"
-            onClick={() => setRole("buyer")}
-            className={[
-              "rounded-[22px] border px-4 py-4 text-left transition",
-              role === "buyer"
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
-            ].join(" ")}
-          >
-            <p className="text-sm font-semibold">Buyer</p>
-            <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400">
-              Search hub + property threads
-            </p>
-          </button>
-        </div>
-
         <label className="block">
           <span className="mb-2 block text-sm font-medium text-slate-700">Full name</span>
           <input
@@ -130,8 +93,7 @@ export function SignInCard({
 
       {status === "sent" ? (
         <p className="mt-4 rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          Magic link sent. Open the email on this device and you’ll land in the right NestPath
-          portal.
+          Magic link sent. Open the email on this device and you’ll land in the agent portal.
         </p>
       ) : null}
 

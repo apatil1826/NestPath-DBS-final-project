@@ -103,124 +103,19 @@ export async function createOrOpenDirectThread(
   buyer: DirectoryBuyer,
 ) {
   const supabase = createSupabaseBrowserClient();
+  const { data, error } = await supabase.rpc("create_or_open_direct_thread", {
+    target_buyer_profile_id: buyer.id,
+  });
 
-  const { data: existingRelationships, error: relationshipLookupError } = await supabase
-    .from("agent_relationships")
-    .select("id, agent_profile_id, buyer_profile_id, status")
-    .eq("agent_profile_id", agent.id)
-    .eq("buyer_profile_id", buyer.id)
-    .limit(1);
-
-  if (relationshipLookupError) {
-    throw new Error(getErrorMessage(relationshipLookupError, "Unable to check relationships."));
+  if (error) {
+    throw new Error(getErrorMessage(error, "Unable to start conversation."));
   }
 
-  let relationship = (existingRelationships as DbRelationship[] | null)?.[0] ?? null;
-
-  if (!relationship) {
-    const { data: insertedRelationship, error: relationshipInsertError } = await supabase
-      .from("agent_relationships")
-      .insert({
-        agent_profile_id: agent.id,
-        buyer_profile_id: buyer.id,
-        status: "active",
-        activated_at: new Date().toISOString(),
-      })
-      .select("id, agent_profile_id, buyer_profile_id, status")
-      .single<DbRelationship>();
-
-    if (relationshipInsertError || !insertedRelationship) {
-      throw new Error(
-        getErrorMessage(relationshipInsertError, "Unable to create relationship."),
-      );
-    }
-
-    relationship = insertedRelationship;
-  } else if (relationship.status !== "active") {
-    const { error: relationshipUpdateError } = await supabase
-      .from("agent_relationships")
-      .update({
-        status: "active",
-        activated_at: new Date().toISOString(),
-      })
-      .eq("id", relationship.id);
-
-    if (relationshipUpdateError) {
-      throw new Error(
-        getErrorMessage(relationshipUpdateError, "Unable to activate relationship."),
-      );
-    }
+  if (!data || typeof data !== "string") {
+    throw new Error("Direct thread was not returned by the server.");
   }
 
-  const { data: existingThreads, error: threadLookupError } = await supabase
-    .from("threads")
-    .select("id, relationship_id, title, last_message_preview, last_message_at, kind")
-    .eq("relationship_id", relationship.id)
-    .eq("kind", "direct")
-    .limit(1);
-
-  if (threadLookupError) {
-    throw new Error(getErrorMessage(threadLookupError, "Unable to check direct threads."));
-  }
-
-  let thread = (existingThreads as DbThread[] | null)?.[0] ?? null;
-
-  if (!thread) {
-    const { data: insertedThread, error: threadInsertError } = await supabase
-      .from("threads")
-      .insert({
-        relationship_id: relationship.id,
-        property_id: null,
-        created_by_profile_id: agent.id,
-        kind: "direct",
-        title: buyer.full_name,
-        summary: `Direct conversation between ${agent.full_name} and ${buyer.full_name}`,
-      })
-      .select("id, relationship_id, title, last_message_preview, last_message_at, kind")
-      .single<DbThread>();
-
-    if (threadInsertError || !insertedThread) {
-      throw new Error(getErrorMessage(threadInsertError, "Unable to create thread."));
-    }
-
-    thread = insertedThread;
-  }
-
-  const { data: existingParticipants, error: participantsLookupError } = await supabase
-    .from("thread_participants")
-    .select("profile_id")
-    .eq("thread_id", thread.id);
-
-  if (participantsLookupError) {
-    throw new Error(
-      getErrorMessage(participantsLookupError, "Unable to load thread participants."),
-    );
-  }
-
-  const existingParticipantIds = new Set(
-    ((existingParticipants as { profile_id: string }[] | null) ?? []).map(
-      (entry) => entry.profile_id,
-    ),
-  );
-
-  const participantsToInsert = [
-    { thread_id: thread.id, profile_id: agent.id },
-    { thread_id: thread.id, profile_id: buyer.id },
-  ].filter((entry) => !existingParticipantIds.has(entry.profile_id));
-
-  if (participantsToInsert.length) {
-    const { error: participantsInsertError } = await supabase
-      .from("thread_participants")
-      .insert(participantsToInsert);
-
-    if (participantsInsertError) {
-      throw new Error(
-        getErrorMessage(participantsInsertError, "Unable to add participants to thread."),
-      );
-    }
-  }
-
-  return thread.id;
+  return data;
 }
 
 export async function listDirectThreadsForProfile(profile: BrowserProfile) {

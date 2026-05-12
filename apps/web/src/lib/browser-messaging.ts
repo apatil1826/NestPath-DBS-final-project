@@ -75,6 +75,23 @@ type DbMessage = {
   sender_profile_id: string | null;
 };
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    return (error as { message: string }).message;
+  }
+
+  return fallback;
+}
+
 function counterpartIdForRelationship(profileId: string, relationship: DbRelationship) {
   return relationship.agent_profile_id === profileId
     ? relationship.buyer_profile_id
@@ -95,7 +112,7 @@ export async function createOrOpenDirectThread(
     .limit(1);
 
   if (relationshipLookupError) {
-    throw relationshipLookupError;
+    throw new Error(getErrorMessage(relationshipLookupError, "Unable to check relationships."));
   }
 
   let relationship = (existingRelationships as DbRelationship[] | null)?.[0] ?? null;
@@ -113,18 +130,26 @@ export async function createOrOpenDirectThread(
       .single<DbRelationship>();
 
     if (relationshipInsertError || !insertedRelationship) {
-      throw relationshipInsertError ?? new Error("Unable to create relationship.");
+      throw new Error(
+        getErrorMessage(relationshipInsertError, "Unable to create relationship."),
+      );
     }
 
     relationship = insertedRelationship;
   } else if (relationship.status !== "active") {
-    await supabase
+    const { error: relationshipUpdateError } = await supabase
       .from("agent_relationships")
       .update({
         status: "active",
         activated_at: new Date().toISOString(),
       })
       .eq("id", relationship.id);
+
+    if (relationshipUpdateError) {
+      throw new Error(
+        getErrorMessage(relationshipUpdateError, "Unable to activate relationship."),
+      );
+    }
   }
 
   const { data: existingThreads, error: threadLookupError } = await supabase
@@ -135,7 +160,7 @@ export async function createOrOpenDirectThread(
     .limit(1);
 
   if (threadLookupError) {
-    throw threadLookupError;
+    throw new Error(getErrorMessage(threadLookupError, "Unable to check direct threads."));
   }
 
   let thread = (existingThreads as DbThread[] | null)?.[0] ?? null;
@@ -155,22 +180,44 @@ export async function createOrOpenDirectThread(
       .single<DbThread>();
 
     if (threadInsertError || !insertedThread) {
-      throw threadInsertError ?? new Error("Unable to create thread.");
+      throw new Error(getErrorMessage(threadInsertError, "Unable to create thread."));
     }
 
     thread = insertedThread;
   }
 
-  const { error: participantsError } = await supabase.from("thread_participants").upsert(
-    [
-      { thread_id: thread.id, profile_id: agent.id },
-      { thread_id: thread.id, profile_id: buyer.id },
-    ],
-    { onConflict: "thread_id,profile_id" },
+  const { data: existingParticipants, error: participantsLookupError } = await supabase
+    .from("thread_participants")
+    .select("profile_id")
+    .eq("thread_id", thread.id);
+
+  if (participantsLookupError) {
+    throw new Error(
+      getErrorMessage(participantsLookupError, "Unable to load thread participants."),
+    );
+  }
+
+  const existingParticipantIds = new Set(
+    ((existingParticipants as { profile_id: string }[] | null) ?? []).map(
+      (entry) => entry.profile_id,
+    ),
   );
 
-  if (participantsError) {
-    throw participantsError;
+  const participantsToInsert = [
+    { thread_id: thread.id, profile_id: agent.id },
+    { thread_id: thread.id, profile_id: buyer.id },
+  ].filter((entry) => !existingParticipantIds.has(entry.profile_id));
+
+  if (participantsToInsert.length) {
+    const { error: participantsInsertError } = await supabase
+      .from("thread_participants")
+      .insert(participantsToInsert);
+
+    if (participantsInsertError) {
+      throw new Error(
+        getErrorMessage(participantsInsertError, "Unable to add participants to thread."),
+      );
+    }
   }
 
   return thread.id;
@@ -185,7 +232,7 @@ export async function listDirectThreadsForProfile(profile: BrowserProfile) {
     .eq("profile_id", profile.id);
 
   if (participantError) {
-    throw participantError;
+    throw new Error(getErrorMessage(participantError, "Unable to load participant rows."));
   }
 
   const threadIds = ((participantRows as { thread_id: string }[] | null) ?? []).map(
@@ -204,7 +251,7 @@ export async function listDirectThreadsForProfile(profile: BrowserProfile) {
     .order("last_message_at", { ascending: false });
 
   if (threadsError) {
-    throw threadsError;
+    throw new Error(getErrorMessage(threadsError, "Unable to load inbox threads."));
   }
 
   const directThreads = (threads as DbThread[] | null) ?? [];
@@ -216,7 +263,7 @@ export async function listDirectThreadsForProfile(profile: BrowserProfile) {
     .in("id", relationshipIds);
 
   if (relationshipsError) {
-    throw relationshipsError;
+    throw new Error(getErrorMessage(relationshipsError, "Unable to load relationships."));
   }
 
   const relationshipMap = new Map(
@@ -239,7 +286,9 @@ export async function listDirectThreadsForProfile(profile: BrowserProfile) {
     : { data: [], error: null };
 
   if (counterpartProfilesError) {
-    throw counterpartProfilesError;
+    throw new Error(
+      getErrorMessage(counterpartProfilesError, "Unable to load counterpart profiles."),
+    );
   }
 
   const counterpartMap = new Map(
@@ -288,7 +337,7 @@ export async function getThreadSnapshot(threadId: string, profile: BrowserProfil
     }>();
 
   if (threadError || !thread) {
-    throw threadError ?? new Error("Thread not found.");
+    throw new Error(getErrorMessage(threadError, "Thread not found."));
   }
 
   const [{ data: relationship, error: relationshipError }, { data: messages, error: messagesError }] =
@@ -306,11 +355,11 @@ export async function getThreadSnapshot(threadId: string, profile: BrowserProfil
     ]);
 
   if (relationshipError || !relationship) {
-    throw relationshipError ?? new Error("Relationship not found.");
+    throw new Error(getErrorMessage(relationshipError, "Relationship not found."));
   }
 
   if (messagesError) {
-    throw messagesError;
+    throw new Error(getErrorMessage(messagesError, "Unable to load messages."));
   }
 
   const counterpartId = counterpartIdForRelationship(profile.id, relationship);
@@ -324,7 +373,7 @@ export async function getThreadSnapshot(threadId: string, profile: BrowserProfil
       .single<DbProfile>();
 
     if (counterpartError) {
-      throw counterpartError;
+      throw new Error(getErrorMessage(counterpartError, "Unable to load counterpart."));
     }
 
     counterpart = counterpartProfile;
@@ -368,7 +417,6 @@ export async function sendThreadMessage(threadId: string, senderProfileId: strin
   });
 
   if (error) {
-    throw error;
+    throw new Error(getErrorMessage(error, "Unable to send message."));
   }
 }
-

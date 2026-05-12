@@ -86,17 +86,23 @@ export default function AgentPortalPage() {
         </p>
 
         <div className="mt-2 flex flex-wrap gap-3">
+          <Link
+            href="/messages"
+            className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+          >
+            Messages
+          </Link>
           {profile.role === "agent" ? (
             <Link
               href="/clients"
-              className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+              className="rounded-full border border-slate-200 px-5 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
             >
               Client directory
             </Link>
           ) : (
             <Link
               href="/settings"
-              className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+              className="rounded-full border border-slate-200 px-5 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
             >
               Switch to agent mode
             </Link>
@@ -139,4 +145,3 @@ export default function AgentPortalPage() {
     </main>
   );
 }
-

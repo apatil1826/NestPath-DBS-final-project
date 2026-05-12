@@ -6,13 +6,7 @@ import { useRouter } from "next/navigation";
 import { BrowserProfile, getOrCreateBrowserProfile } from "@/lib/browser-auth";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-
-type BuyerDirectoryEntry = {
-  id: string;
-  full_name: string;
-  email: string;
-  role: "buyer";
-};
+import { createOrOpenDirectThread, DirectoryBuyer } from "@/lib/browser-messaging";
 
 type ManualClientRecord = {
   id: string;
@@ -36,10 +30,11 @@ function getInitials(name: string) {
 export default function ClientsPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<BrowserProfile | null>(null);
-  const [buyers, setBuyers] = useState<BuyerDirectoryEntry[]>([]);
+  const [buyers, setBuyers] = useState<DirectoryBuyer[]>([]);
   const [manualClients, setManualClients] = useState<ManualClientRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [startingConversationFor, setStartingConversationFor] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -89,7 +84,7 @@ export default function ClientsPage() {
 
         if (!cancelled) {
           setProfile(resolvedProfile);
-          setBuyers((buyerData as BuyerDirectoryEntry[] | null) ?? []);
+          setBuyers((buyerData as DirectoryBuyer[] | null) ?? []);
           setManualClients((manualData as ManualClientRecord[] | null) ?? []);
         }
       } catch (loadError) {
@@ -202,6 +197,28 @@ export default function ClientsPage() {
     }
   }
 
+  async function handleStartConversation(buyer: DirectoryBuyer) {
+    if (!profile) {
+      return;
+    }
+
+    setStartingConversationFor(buyer.id);
+    setErrorMessage(null);
+
+    try {
+      const threadId = await createOrOpenDirectThread(profile, buyer);
+      router.push(`/messages/${threadId}`);
+    } catch (conversationError) {
+      setErrorMessage(
+        conversationError instanceof Error
+          ? conversationError.message
+          : "Unable to start conversation.",
+      );
+    } finally {
+      setStartingConversationFor(null);
+    }
+  }
+
   if (loading) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-[1300px] items-center justify-center px-4 py-6 sm:px-6 lg:px-10">
@@ -299,8 +316,17 @@ export default function ClientsPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">
-                    Buyer
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">
+                      Buyer
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleStartConversation(buyer)}
+                      className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-70"
+                    >
+                      {startingConversationFor === buyer.id ? "Opening..." : "Start conversation"}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -433,4 +459,3 @@ export default function ClientsPage() {
     </main>
   );
 }
-

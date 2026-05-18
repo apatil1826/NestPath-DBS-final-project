@@ -26,9 +26,11 @@ export type InboxThread = {
 
 export type ThreadMessage = {
   id: string;
+  kind: "user" | "system";
   body: string;
   createdAt: string;
   senderProfileId: string | null;
+  metadata: Record<string, unknown>;
 };
 
 export type ThreadSnapshot = {
@@ -43,6 +45,15 @@ export type ThreadSnapshot = {
     role: "agent" | "buyer";
   } | null;
   messages: ThreadMessage[];
+};
+
+export type ThreadFileAttachment = {
+  fileId: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  storageBucket: string;
+  storagePath: string;
 };
 
 type DbRelationship = {
@@ -70,9 +81,11 @@ type DbProfile = {
 
 type DbMessage = {
   id: string;
+  kind: "user" | "system";
   body: string;
   created_at: string;
   sender_profile_id: string | null;
+  metadata: Record<string, unknown>;
 };
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -244,7 +257,7 @@ export async function getThreadSnapshot(threadId: string, profile: BrowserProfil
         .single<DbRelationship>(),
       supabase
         .from("messages")
-        .select("id, body, created_at, sender_profile_id")
+        .select("id, kind, body, created_at, sender_profile_id, metadata")
         .eq("thread_id", thread.id)
         .order("created_at", { ascending: true }),
     ]);
@@ -289,14 +302,21 @@ export async function getThreadSnapshot(threadId: string, profile: BrowserProfil
       : null,
     messages: ((messages as DbMessage[] | null) ?? []).map((message) => ({
       id: message.id,
+      kind: message.kind,
       body: message.body,
       createdAt: message.created_at,
       senderProfileId: message.sender_profile_id,
+      metadata: message.metadata ?? {},
     })),
   } satisfies ThreadSnapshot;
 }
 
-export async function sendThreadMessage(threadId: string, senderProfileId: string, body: string) {
+export async function sendThreadMessage(
+  threadId: string,
+  senderProfileId: string,
+  body: string,
+  metadata: Record<string, unknown> = {},
+) {
   const supabase = createSupabaseBrowserClient();
   const trimmedBody = body.trim();
 
@@ -309,6 +329,7 @@ export async function sendThreadMessage(threadId: string, senderProfileId: strin
     sender_profile_id: senderProfileId,
     kind: "user",
     body: trimmedBody,
+    metadata,
   });
 
   if (error) {

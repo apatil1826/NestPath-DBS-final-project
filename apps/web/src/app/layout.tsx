@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import "@react-pdf-viewer/core/lib/styles/index.css";
+import "@react-pdf-viewer/default-layout/lib/styles/index.css";
+import "@react-pdf-viewer/highlight/lib/styles/index.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

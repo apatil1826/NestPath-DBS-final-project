@@ -7,9 +7,15 @@ import { BrowserProfile, getOrCreateBrowserProfile } from "@/lib/browser-auth";
 import {
   getThreadSnapshot,
   sendThreadMessage,
+  ThreadFileAttachment,
   ThreadMessage,
   ThreadSnapshot,
 } from "@/lib/browser-messaging";
+import {
+  listThreadFiles,
+  ThreadFile,
+  uploadThreadPdf,
+} from "@/lib/browser-thread-files";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 
@@ -22,17 +28,46 @@ function formatMessageTimestamp(timestamp: string) {
   }).format(new Date(timestamp));
 }
 
+function formatFileSize(fileSize: number) {
+  if (fileSize >= 1024 * 1024) {
+    return `${(fileSize / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  return `${Math.max(1, Math.round(fileSize / 1024))} KB`;
+}
+
+function getMessageAttachment(message: ThreadMessage) {
+  const candidate =
+    typeof message.metadata.file === "object" && message.metadata.file !== null
+      ? (message.metadata.file as Partial<ThreadFileAttachment>)
+      : null;
+
+  if (
+    !candidate?.fileId ||
+    !candidate.fileName ||
+    !candidate.mimeType ||
+    typeof candidate.fileSize !== "number"
+  ) {
+    return null;
+  }
+
+  return candidate as ThreadFileAttachment;
+}
+
 export default function MessageThreadPage() {
   const params = useParams<{ threadId: string }>();
   const router = useRouter();
   const threadId = params.threadId;
   const [profile, setProfile] = useState<BrowserProfile | null>(null);
   const [thread, setThread] = useState<ThreadSnapshot | null>(null);
+  const [threadFiles, setThreadFiles] = useState<ThreadFile[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,11 +81,15 @@ export default function MessageThreadPage() {
           return;
         }
 
-        const snapshot = await getThreadSnapshot(threadId, resolvedProfile);
+        const [snapshot, files] = await Promise.all([
+          getThreadSnapshot(threadId, resolvedProfile),
+          listThreadFiles(threadId),
+        ]);
 
         if (!cancelled) {
           setProfile(resolvedProfile);
           setThread(snapshot);
+          setThreadFiles(files);
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -91,9 +130,11 @@ export default function MessageThreadPage() {
         (payload) => {
           const nextMessage = payload.new as {
             id: string;
+            kind: "user" | "system";
             body: string;
             created_at: string;
             sender_profile_id: string | null;
+            metadata: Record<string, unknown>;
           };
 
           setThread((currentThread) => {
@@ -107,9 +148,11 @@ export default function MessageThreadPage() {
 
             const appendedMessage: ThreadMessage = {
               id: nextMessage.id,
+              kind: nextMessage.kind,
               body: nextMessage.body,
               createdAt: nextMessage.created_at,
               senderProfileId: nextMessage.sender_profile_id,
+              metadata: nextMessage.metadata ?? {},
             };
 
             return {
@@ -117,6 +160,49 @@ export default function MessageThreadPage() {
               lastMessageAt: appendedMessage.createdAt,
               messages: [...currentThread.messages, appendedMessage],
             };
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "thread_files",
+          filter: `thread_id=eq.${thread.id}`,
+        },
+        (payload) => {
+          const nextFile = payload.new as {
+            id: string;
+            thread_id: string;
+            uploaded_by_profile_id: string;
+            file_name: string;
+            storage_bucket: string;
+            storage_path: string;
+            mime_type: string;
+            file_size: number;
+            created_at: string;
+          };
+
+          setThreadFiles((currentFiles) => {
+            if (currentFiles.some((file) => file.id === nextFile.id)) {
+              return currentFiles;
+            }
+
+            return [
+              {
+                id: nextFile.id,
+                threadId: nextFile.thread_id,
+                uploadedByProfileId: nextFile.uploaded_by_profile_id,
+                fileName: nextFile.file_name,
+                storageBucket: nextFile.storage_bucket,
+                storagePath: nextFile.storage_path,
+                mimeType: nextFile.mime_type,
+                fileSize: nextFile.file_size,
+                createdAt: nextFile.created_at,
+              },
+              ...currentFiles,
+            ];
           });
         },
       )
@@ -150,6 +236,35 @@ export default function MessageThreadPage() {
       );
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleUploadPdf(event: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!profile || !thread || !selectedFile) {
+      return;
+    }
+
+    setUploadingPdf(true);
+    setErrorMessage(null);
+
+    try {
+      const uploadedFile = await uploadThreadPdf(thread.id, profile, selectedFile);
+      setThreadFiles((currentFiles) => {
+        if (currentFiles.some((file) => file.id === uploadedFile.id)) {
+          return currentFiles;
+        }
+
+        return [uploadedFile, ...currentFiles];
+      });
+    } catch (uploadError) {
+      setErrorMessage(
+        uploadError instanceof Error ? uploadError.message : "Unable to upload this PDF.",
+      );
+    } finally {
+      setUploadingPdf(false);
     }
   }
 
@@ -219,68 +334,153 @@ export default function MessageThreadPage() {
         </section>
       ) : null}
 
-      <section className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="space-y-3">
-          {thread.messages.length ? (
-            thread.messages.map((message) => {
-              const isOwnMessage = message.senderProfileId === profile.id;
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="space-y-3">
+            {thread.messages.length ? (
+              thread.messages.map((message) => {
+                const isOwnMessage = message.senderProfileId === profile.id;
+                const attachment = getMessageAttachment(message);
 
-              return (
-                <div
-                  key={message.id}
-                  className={[
-                    "flex",
-                    isOwnMessage ? "justify-end" : "justify-start",
-                  ].join(" ")}
-                >
+                return (
                   <div
+                    key={message.id}
                     className={[
-                      "max-w-[75%] rounded-[24px] px-4 py-3",
-                      isOwnMessage
-                        ? "bg-slate-900 text-white"
-                        : "border border-slate-200 bg-slate-50 text-slate-900",
+                      "flex",
+                      isOwnMessage ? "justify-end" : "justify-start",
                     ].join(" ")}
                   >
-                    <p className="text-sm leading-6">{message.body}</p>
-                    <p
+                    <div
                       className={[
-                        "mt-2 text-xs",
-                        isOwnMessage ? "text-slate-300" : "text-slate-500",
+                        "max-w-[75%] rounded-[24px] px-4 py-3",
+                        isOwnMessage
+                          ? "bg-slate-900 text-white"
+                          : "border border-slate-200 bg-slate-50 text-slate-900",
                       ].join(" ")}
                     >
-                      {formatMessageTimestamp(message.createdAt)}
-                    </p>
+                      {attachment ? (
+                        <Link
+                          href={`/messages/${thread.id}/files/${attachment.fileId}`}
+                          className={[
+                            "block rounded-[18px] border px-4 py-3 transition",
+                            isOwnMessage
+                              ? "border-slate-700 bg-slate-800 hover:bg-slate-700"
+                              : "border-slate-200 bg-white hover:bg-slate-100",
+                          ].join(" ")}
+                        >
+                          <p className="text-xs uppercase tracking-[0.18em] text-amber-300">
+                            PDF review
+                          </p>
+                          <p className="mt-2 text-sm font-semibold">{attachment.fileName}</p>
+                          <p
+                            className={[
+                              "mt-1 text-xs",
+                              isOwnMessage ? "text-slate-300" : "text-slate-500",
+                            ].join(" ")}
+                          >
+                            {formatFileSize(attachment.fileSize)} · Open to highlight and comment
+                          </p>
+                        </Link>
+                      ) : null}
+                      <p className={attachment ? "mt-3 text-sm leading-6" : "text-sm leading-6"}>
+                        {message.body}
+                      </p>
+                      <p
+                        className={[
+                          "mt-2 text-xs",
+                          isOwnMessage ? "text-slate-300" : "text-slate-500",
+                        ].join(" ")}
+                      >
+                        {formatMessageTimestamp(message.createdAt)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-6">
-              <p className="text-sm font-semibold text-slate-900">No messages yet</p>
-              <p className="mt-2 text-sm leading-7 text-slate-500">
-                Send the first message to start this conversation.
-              </p>
-            </div>
-          )}
-          <div ref={endRef} />
-        </div>
-
-        <form onSubmit={handleSendMessage} className="mt-6 flex flex-col gap-3 border-t border-slate-100 pt-6">
-          <textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            rows={4}
-            className="w-full resize-none rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900"
-            placeholder="Send a message..."
-          />
-          <div className="flex justify-end">
-            <button className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-70">
-              {sending ? "Sending..." : "Send message"}
-            </button>
+                );
+              })
+            ) : (
+              <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-6">
+                <p className="text-sm font-semibold text-slate-900">No messages yet</p>
+                <p className="mt-2 text-sm leading-7 text-slate-500">
+                  Send the first message or share a PDF to start this conversation.
+                </p>
+              </div>
+            )}
+            <div ref={endRef} />
           </div>
-        </form>
-      </section>
+
+          <form
+            onSubmit={handleSendMessage}
+            className="mt-6 flex flex-col gap-3 border-t border-slate-100 pt-6"
+          >
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              rows={4}
+              className="w-full resize-none rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900"
+              placeholder="Send a message..."
+            />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  className="hidden"
+                  onChange={handleUploadPdf}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-full border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                  disabled={uploadingPdf}
+                >
+                  {uploadingPdf ? "Uploading PDF..." : "Upload PDF"}
+                </button>
+              </div>
+              <button className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-70">
+                {sending ? "Sending..." : "Send message"}
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <aside className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Files gallery</p>
+          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">
+            Shared PDFs
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-slate-500">
+            Upload a PDF here, then open it to highlight sections and leave comments.
+          </p>
+
+          <div className="mt-6 space-y-3">
+            {threadFiles.length ? (
+              threadFiles.map((file) => (
+                <Link
+                  key={file.id}
+                  href={`/messages/${thread.id}/files/${file.id}`}
+                  className="block rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4 transition hover:border-slate-300 hover:bg-white"
+                >
+                  <p className="text-sm font-semibold text-slate-900">{file.fileName}</p>
+                  <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">
+                    {formatFileSize(file.fileSize)}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Added {formatMessageTimestamp(file.createdAt)}
+                  </p>
+                </Link>
+              ))
+            ) : (
+              <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 px-4 py-6">
+                <p className="text-sm font-semibold text-slate-900">No PDFs yet</p>
+                <p className="mt-2 text-sm leading-7 text-slate-500">
+                  Use the upload button below the conversation to add the first document.
+                </p>
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
     </main>
   );
 }
-

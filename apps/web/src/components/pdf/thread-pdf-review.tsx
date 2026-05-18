@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SpecialZoomLevel, Viewer, Worker } from "@react-pdf-viewer/core";
+import {
+  SpecialZoomLevel,
+  Viewer,
+  Worker,
+  type WorkerProps,
+} from "@react-pdf-viewer/core";
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import type {
   HighlightArea,
@@ -33,6 +38,10 @@ type SelectedFile = {
   createdAt: string;
   uploadedByProfileId: string;
 };
+
+const PdfWorker = Worker as unknown as React.ComponentType<
+  React.PropsWithChildren<WorkerProps>
+>;
 
 function formatTimestamp(timestamp: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -377,7 +386,7 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <section className="min-h-[780px] rounded-[30px] border border-slate-200 bg-white p-4 shadow-sm">
-          <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js">
+          <PdfWorker workerUrl="https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js">
             <div className="h-[760px] overflow-hidden rounded-[22px] border border-slate-200">
               <Viewer
                 fileUrl={signedUrl}
@@ -385,7 +394,7 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
                 plugins={[defaultLayoutPluginInstance, highlightPluginInstance]}
               />
             </div>
-          </Worker>
+          </PdfWorker>
         </section>
 
         <aside className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">

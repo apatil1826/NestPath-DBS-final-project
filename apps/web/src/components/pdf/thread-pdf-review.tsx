@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   SpecialZoomLevel,
   Viewer,
+  type ViewerProps,
   Worker,
   type WorkerProps,
 } from "@react-pdf-viewer/core";
@@ -42,6 +43,7 @@ type SelectedFile = {
 const PdfWorker = Worker as unknown as React.ComponentType<
   React.PropsWithChildren<WorkerProps>
 >;
+const PdfViewer = Viewer as unknown as React.ComponentType<ViewerProps>;
 
 function formatTimestamp(timestamp: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -388,7 +390,7 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
         <section className="min-h-[780px] rounded-[30px] border border-slate-200 bg-white p-4 shadow-sm">
           <PdfWorker workerUrl="https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js">
             <div className="h-[760px] overflow-hidden rounded-[22px] border border-slate-200">
-              <Viewer
+              <PdfViewer
                 fileUrl={signedUrl}
                 defaultScale={SpecialZoomLevel.PageFit}
                 plugins={[defaultLayoutPluginInstance, highlightPluginInstance]}

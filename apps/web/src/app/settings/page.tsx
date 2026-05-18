@@ -71,7 +71,7 @@ export default function SettingsPage() {
         throw error;
       }
 
-      router.replace("/agent");
+      router.replace(role === "agent" ? "/clients" : "/messages");
       router.refresh();
     } catch (submitError) {
       setErrorMessage(
@@ -187,4 +187,3 @@ export default function SettingsPage() {
     </main>
   );
 }
-

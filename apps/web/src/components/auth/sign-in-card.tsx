@@ -196,10 +196,6 @@ export function SignInCard({
           />
         </label>
 
-        <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-xs uppercase tracking-[0.14em] text-slate-400">
-          Redirect after sign-in: {nextPath}
-        </div>
-
         <button
           type="submit"
           disabled={status === "submitting"}

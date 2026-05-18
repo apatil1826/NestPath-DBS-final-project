@@ -6,7 +6,12 @@ import { useRouter } from "next/navigation";
 import { BrowserProfile, getOrCreateBrowserProfile } from "@/lib/browser-auth";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { createOrOpenDirectThread, DirectoryBuyer } from "@/lib/browser-messaging";
+import {
+  createOrOpenDirectThread,
+  DirectoryBuyer,
+  InboxThread,
+  listDirectThreadsForProfile,
+} from "@/lib/browser-messaging";
 
 type ManualClientRecord = {
   id: string;
@@ -32,6 +37,7 @@ export default function ClientsPage() {
   const [profile, setProfile] = useState<BrowserProfile | null>(null);
   const [buyers, setBuyers] = useState<DirectoryBuyer[]>([]);
   const [manualClients, setManualClients] = useState<ManualClientRecord[]>([]);
+  const [buyerThreadMap, setBuyerThreadMap] = useState<Record<string, InboxThread>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [startingConversationFor, setStartingConversationFor] = useState<string | null>(null);
@@ -40,6 +46,19 @@ export default function ClientsPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+
+  async function refreshBuyerThreads(agentProfile: BrowserProfile) {
+    const threads = await listDirectThreadsForProfile(agentProfile);
+    const nextThreadMap = threads.reduce<Record<string, InboxThread>>((accumulator, thread) => {
+      if (thread.counterpart?.role === "buyer" && thread.counterpart.id) {
+        accumulator[thread.counterpart.id] = thread;
+      }
+
+      return accumulator;
+    }, {});
+
+    setBuyerThreadMap(nextThreadMap);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -59,8 +78,11 @@ export default function ClientsPage() {
         }
 
         const supabase = createSupabaseBrowserClient();
-        const [{ data: buyerData, error: buyerError }, { data: manualData, error: manualError }] =
-          await Promise.all([
+        const [
+          { data: buyerData, error: buyerError },
+          { data: manualData, error: manualError },
+          buyerThreads,
+        ] = await Promise.all([
             supabase
               .from("profiles")
               .select("id, full_name, email, role")
@@ -72,6 +94,7 @@ export default function ClientsPage() {
               .select("id, full_name, email, phone, status, notes, created_at")
               .eq("agent_profile_id", resolvedProfile.id)
               .order("created_at", { ascending: false }),
+            listDirectThreadsForProfile(resolvedProfile),
           ]);
 
         if (buyerError) {
@@ -86,6 +109,15 @@ export default function ClientsPage() {
           setProfile(resolvedProfile);
           setBuyers((buyerData as DirectoryBuyer[] | null) ?? []);
           setManualClients((manualData as ManualClientRecord[] | null) ?? []);
+          setBuyerThreadMap(
+            buyerThreads.reduce<Record<string, InboxThread>>((accumulator, thread) => {
+              if (thread.counterpart?.role === "buyer" && thread.counterpart.id) {
+                accumulator[thread.counterpart.id] = thread;
+              }
+
+              return accumulator;
+            }, {}),
+          );
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -106,6 +138,34 @@ export default function ClientsPage() {
       cancelled = true;
     };
   }, [router]);
+
+  useEffect(() => {
+    if (!profile) {
+      return;
+    }
+
+    const supabase = createSupabaseBrowserClient();
+    const channel = supabase
+      .channel(`clients-directory:${profile.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+        },
+        () => {
+          void refreshBuyerThreads(profile).catch(() => {
+            // Leave the current state visible if a background refresh fails.
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [profile]);
 
   async function refreshManualClients(agentId: string) {
     const supabase = createSupabaseBrowserClient();
@@ -311,8 +371,27 @@ export default function ClientsPage() {
                       {getInitials(buyer.full_name)}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{buyer.full_name}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-slate-900">{buyer.full_name}</p>
+                        {(buyerThreadMap[buyer.id]?.unreadCount ?? 0) > 0 ? (
+                          <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white">
+                            {buyerThreadMap[buyer.id].unreadCount} new
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="mt-1 text-sm text-slate-500">{buyer.email}</p>
+                      {buyerThreadMap[buyer.id]?.lastMessagePreview ? (
+                        <p
+                          className={[
+                            "mt-2 text-sm leading-6",
+                            (buyerThreadMap[buyer.id]?.unreadCount ?? 0) > 0
+                              ? "font-semibold text-slate-900"
+                              : "text-slate-500",
+                          ].join(" ")}
+                        >
+                          {buyerThreadMap[buyer.id].lastMessagePreview}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
 
@@ -325,7 +404,11 @@ export default function ClientsPage() {
                       onClick={() => handleStartConversation(buyer)}
                       className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-70"
                     >
-                      {startingConversationFor === buyer.id ? "Opening..." : "Start conversation"}
+                      {startingConversationFor === buyer.id
+                        ? "Opening..."
+                        : buyerThreadMap[buyer.id]
+                          ? "Open conversation"
+                          : "Start conversation"}
                     </button>
                   </div>
                 </div>

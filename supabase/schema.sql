@@ -157,12 +157,24 @@ create table public.pdf_annotations (
   color text not null default '#fef08a',
   highlight_areas jsonb not null default '[]'::jsonb,
   selection_data jsonb not null default '{}'::jsonb,
+  resolved_at timestamptz,
+  resolved_by_profile_id uuid references public.profiles (id) on delete set null,
   created_at timestamptz not null default timezone('utc', now()),
   check (page_index >= 0)
 );
 
 create index pdf_annotations_file_id_created_at_idx
 on public.pdf_annotations (file_id, created_at asc);
+
+create table public.thread_reads (
+  thread_id uuid not null references public.threads (id) on delete cascade,
+  profile_id uuid not null references public.profiles (id) on delete cascade,
+  last_read_at timestamptz not null default timezone('utc', now()),
+  primary key (thread_id, profile_id)
+);
+
+create index thread_reads_profile_id_last_read_at_idx
+on public.thread_reads (profile_id, last_read_at desc);
 
 create trigger set_clients_updated_at
 before update on public.clients
@@ -484,6 +496,7 @@ alter table public.action_items enable row level security;
 alter table public.clients enable row level security;
 alter table public.thread_files enable row level security;
 alter table public.pdf_annotations enable row level security;
+alter table public.thread_reads enable row level security;
 
 create policy "profiles are viewable by relationship members"
 on public.profiles
@@ -701,6 +714,13 @@ with check (
   and author_profile_id = auth.uid()
 );
 
+create policy "thread participants can resolve pdf annotations"
+on public.pdf_annotations
+for update
+to authenticated
+using (public.is_thread_participant(thread_id))
+with check (public.is_thread_participant(thread_id));
+
 create policy "authors can delete their pdf annotations"
 on public.pdf_annotations
 for delete
@@ -740,3 +760,32 @@ using (
 alter publication supabase_realtime add table public.messages;
 alter publication supabase_realtime add table public.thread_files;
 alter publication supabase_realtime add table public.pdf_annotations;
+alter publication supabase_realtime add table public.thread_reads;
+
+create policy "thread participants can read thread reads"
+on public.thread_reads
+for select
+to authenticated
+using (public.is_thread_participant(thread_id));
+
+create policy "participants can upsert their own thread reads"
+on public.thread_reads
+for insert
+to authenticated
+with check (
+  public.is_thread_participant(thread_id)
+  and profile_id = auth.uid()
+);
+
+create policy "participants can update their own thread reads"
+on public.thread_reads
+for update
+to authenticated
+using (
+  public.is_thread_participant(thread_id)
+  and profile_id = auth.uid()
+)
+with check (
+  public.is_thread_participant(thread_id)
+  and profile_id = auth.uid()
+);

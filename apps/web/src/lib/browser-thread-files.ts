@@ -35,6 +35,8 @@ export type PdfAnnotation = {
   color: string;
   highlightAreas: PdfHighlightArea[];
   selectionData: Record<string, unknown>;
+  resolvedAt: string | null;
+  resolvedByProfileId: string | null;
   createdAt: string;
 };
 
@@ -64,6 +66,8 @@ type DbPdfAnnotation = {
   color: string;
   highlight_areas: PdfHighlightArea[];
   selection_data: Record<string, unknown>;
+  resolved_at: string | null;
+  resolved_by_profile_id: string | null;
   created_at: string;
 };
 
@@ -125,6 +129,8 @@ function mapPdfAnnotation(annotation: DbPdfAnnotation): PdfAnnotation {
     color: annotation.color,
     highlightAreas: annotation.highlight_areas,
     selectionData: annotation.selection_data,
+    resolvedAt: annotation.resolved_at,
+    resolvedByProfileId: annotation.resolved_by_profile_id,
     createdAt: annotation.created_at,
   };
 }
@@ -240,7 +246,7 @@ export async function listPdfAnnotations(fileId: string) {
   const { data, error } = await supabase
     .from("pdf_annotations")
     .select(
-      "id, file_id, thread_id, author_profile_id, page_index, quote, comment_text, color, highlight_areas, selection_data, created_at",
+      "id, file_id, thread_id, author_profile_id, page_index, quote, comment_text, color, highlight_areas, selection_data, resolved_at, resolved_by_profile_id, created_at",
     )
     .eq("file_id", fileId)
     .order("created_at", { ascending: true });
@@ -262,6 +268,7 @@ export async function createPdfAnnotation(input: {
   color?: string;
   highlightAreas: PdfHighlightArea[];
   selectionData: Record<string, unknown>;
+  fileName?: string;
 }) {
   const supabase = createSupabaseBrowserClient();
   const { data, error } = await supabase
@@ -278,7 +285,7 @@ export async function createPdfAnnotation(input: {
       selection_data: input.selectionData,
     })
     .select(
-      "id, file_id, thread_id, author_profile_id, page_index, quote, comment_text, color, highlight_areas, selection_data, created_at",
+      "id, file_id, thread_id, author_profile_id, page_index, quote, comment_text, color, highlight_areas, selection_data, resolved_at, resolved_by_profile_id, created_at",
     )
     .single<DbPdfAnnotation>();
 
@@ -286,5 +293,69 @@ export async function createPdfAnnotation(input: {
     throw new Error(getErrorMessage(error, "Unable to save this comment."));
   }
 
-  return mapPdfAnnotation(data);
+  const createdAnnotation = mapPdfAnnotation(data);
+
+  await sendThreadMessage(
+    input.threadId,
+    input.profileId,
+    `Added a PDF comment${input.fileName ? ` on ${input.fileName}` : ""}.`,
+    {
+      pdfAnnotation: {
+        annotationId: createdAnnotation.id,
+        fileId: input.fileId,
+        fileName: input.fileName ?? null,
+        action: "created",
+      },
+    },
+    "system",
+  );
+
+  return createdAnnotation;
+}
+
+export async function resolvePdfAnnotation(input: {
+  annotationId: string;
+  fileId: string;
+  threadId: string;
+  profileId: string;
+  fileName?: string;
+}) {
+  const supabase = createSupabaseBrowserClient();
+  const resolvedAt = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("pdf_annotations")
+    .update({
+      resolved_at: resolvedAt,
+      resolved_by_profile_id: input.profileId,
+    })
+    .eq("id", input.annotationId)
+    .eq("file_id", input.fileId)
+    .is("resolved_at", null)
+    .select(
+      "id, file_id, thread_id, author_profile_id, page_index, quote, comment_text, color, highlight_areas, selection_data, resolved_at, resolved_by_profile_id, created_at",
+    )
+    .single<DbPdfAnnotation>();
+
+  if (error || !data) {
+    throw new Error(getErrorMessage(error, "Unable to resolve this comment."));
+  }
+
+  const resolvedAnnotation = mapPdfAnnotation(data);
+
+  await sendThreadMessage(
+    input.threadId,
+    input.profileId,
+    `Resolved a PDF comment${input.fileName ? ` on ${input.fileName}` : ""}.`,
+    {
+      pdfAnnotation: {
+        annotationId: resolvedAnnotation.id,
+        fileId: input.fileId,
+        fileName: input.fileName ?? null,
+        action: "resolved",
+      },
+    },
+    "system",
+  );
+
+  return resolvedAnnotation;
 }

@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { BrowserProfile, getOrCreateBrowserProfile } from "@/lib/browser-auth";
 import {
   getThreadSnapshot,
+  markThreadAsRead,
   sendThreadMessage,
   ThreadFileAttachment,
   ThreadMessage,
@@ -90,6 +91,7 @@ export default function MessageThreadPage() {
           setProfile(resolvedProfile);
           setThread(snapshot);
           setThreadFiles(files);
+          void markThreadAsRead(threadId, resolvedProfile.id);
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -161,6 +163,10 @@ export default function MessageThreadPage() {
               messages: [...currentThread.messages, appendedMessage],
             };
           });
+
+          if (profile && nextMessage.sender_profile_id !== profile.id) {
+            void markThreadAsRead(thread.id, profile.id);
+          }
         },
       )
       .on(
@@ -211,7 +217,7 @@ export default function MessageThreadPage() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [thread]);
+  }, [profile, thread]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { BrowserProfile, getOrCreateBrowserProfile } from "@/lib/browser-auth";
 import { InboxThread, listDirectThreadsForProfile } from "@/lib/browser-messaging";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 function formatRelativeTimestamp(timestamp: string) {
   const date = new Date(timestamp);
@@ -61,6 +62,36 @@ export default function MessagesInboxPage() {
       cancelled = true;
     };
   }, [router]);
+
+  useEffect(() => {
+    if (!profile) {
+      return;
+    }
+
+    const supabase = createSupabaseBrowserClient();
+    const channel = supabase
+      .channel(`messages-inbox:${profile.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+        },
+        () => {
+          void listDirectThreadsForProfile(profile)
+            .then((nextThreads) => setThreads(nextThreads))
+            .catch(() => {
+              // Keep the current list visible if a background refresh fails.
+            });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [profile]);
 
   if (loading) {
     return (
@@ -136,13 +167,27 @@ export default function MessagesInboxPage() {
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {thread.counterpart?.fullName ?? thread.title}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {thread.counterpart?.fullName ?? thread.title}
+                      </p>
+                      {thread.unreadCount > 0 ? (
+                        <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white">
+                          {thread.unreadCount} new
+                        </span>
+                      ) : null}
+                    </div>
                     <p className="mt-1 text-sm text-slate-500">
                       {thread.counterpart?.email ?? "Conversation participant"}
                     </p>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">{thread.lastMessagePreview}</p>
+                    <p
+                      className={[
+                        "mt-3 text-sm leading-6",
+                        thread.unreadCount > 0 ? "font-semibold text-slate-900" : "text-slate-600",
+                      ].join(" ")}
+                    >
+                      {thread.lastMessagePreview}
+                    </p>
                   </div>
 
                   <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
@@ -166,4 +211,3 @@ export default function MessagesInboxPage() {
     </main>
   );
 }
-

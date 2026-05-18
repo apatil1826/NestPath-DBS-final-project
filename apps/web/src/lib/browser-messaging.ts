@@ -16,6 +16,7 @@ export type InboxThread = {
   title: string;
   lastMessagePreview: string;
   lastMessageAt: string;
+  unreadCount: number;
   counterpart: {
     id: string;
     fullName: string;
@@ -86,6 +87,12 @@ type DbMessage = {
   created_at: string;
   sender_profile_id: string | null;
   metadata: Record<string, unknown>;
+};
+
+type DbThreadRead = {
+  thread_id: string;
+  profile_id: string;
+  last_read_at: string;
 };
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -203,6 +210,49 @@ export async function listDirectThreadsForProfile(profile: BrowserProfile) {
     ((counterpartProfiles as DbProfile[] | null) ?? []).map((entry) => [entry.id, entry]),
   );
 
+  const { data: threadReads, error: threadReadsError } = await supabase
+    .from("thread_reads")
+    .select("thread_id, profile_id, last_read_at")
+    .in("thread_id", directThreads.map((thread) => thread.id))
+    .eq("profile_id", profile.id);
+
+  if (threadReadsError) {
+    throw new Error(getErrorMessage(threadReadsError, "Unable to load message notifications."));
+  }
+
+  const threadReadMap = new Map(
+    ((threadReads as DbThreadRead[] | null) ?? []).map((threadRead) => [
+      threadRead.thread_id,
+      threadRead.last_read_at,
+    ]),
+  );
+
+  const unreadCounts = new Map<string, number>();
+
+  await Promise.all(
+    directThreads.map(async (thread) => {
+      const lastReadAt = threadReadMap.get(thread.id);
+
+      let query = supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .eq("thread_id", thread.id)
+        .neq("sender_profile_id", profile.id);
+
+      if (lastReadAt) {
+        query = query.gt("created_at", lastReadAt);
+      }
+
+      const { count, error } = await query;
+
+      if (error) {
+        throw new Error(getErrorMessage(error, "Unable to load unread message counts."));
+      }
+
+      unreadCounts.set(thread.id, count ?? 0);
+    }),
+  );
+
   return directThreads.map((thread) => {
     const relationship = relationshipMap.get(thread.relationship_id) ?? null;
     const counterpartId = relationship
@@ -216,6 +266,7 @@ export async function listDirectThreadsForProfile(profile: BrowserProfile) {
       title: counterpart?.full_name ?? thread.title,
       lastMessagePreview: thread.last_message_preview ?? "No messages yet",
       lastMessageAt: thread.last_message_at,
+      unreadCount: unreadCounts.get(thread.id) ?? 0,
       counterpart: counterpart
         ? {
             id: counterpart.id,
@@ -311,11 +362,29 @@ export async function getThreadSnapshot(threadId: string, profile: BrowserProfil
   } satisfies ThreadSnapshot;
 }
 
+export async function markThreadAsRead(threadId: string, profileId: string) {
+  const supabase = createSupabaseBrowserClient();
+  const timestamp = new Date().toISOString();
+  const { error } = await supabase.from("thread_reads").upsert(
+    {
+      thread_id: threadId,
+      profile_id: profileId,
+      last_read_at: timestamp,
+    },
+    { onConflict: "thread_id,profile_id" },
+  );
+
+  if (error) {
+    throw new Error(getErrorMessage(error, "Unable to mark this thread as read."));
+  }
+}
+
 export async function sendThreadMessage(
   threadId: string,
   senderProfileId: string,
   body: string,
   metadata: Record<string, unknown> = {},
+  kind: "user" | "system" = "user",
 ) {
   const supabase = createSupabaseBrowserClient();
   const trimmedBody = body.trim();
@@ -327,7 +396,7 @@ export async function sendThreadMessage(
   const { error } = await supabase.from("messages").insert({
     thread_id: threadId,
     sender_profile_id: senderProfileId,
-    kind: "user",
+    kind,
     body: trimmedBody,
     metadata,
   });

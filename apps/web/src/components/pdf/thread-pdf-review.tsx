@@ -24,6 +24,7 @@ import {
   getThreadFileWithSignedUrl,
   listPdfAnnotations,
   PdfAnnotation,
+  resolvePdfAnnotation,
 } from "@/lib/browser-thread-files";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -72,6 +73,7 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [resolvingAnnotationId, setResolvingAnnotationId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -175,6 +177,34 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
           });
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "pdf_annotations",
+          filter: `file_id=eq.${fileId}`,
+        },
+        (payload) => {
+          const nextAnnotation = payload.new as {
+            id: string;
+            resolved_at: string | null;
+            resolved_by_profile_id: string | null;
+          };
+
+          setAnnotations((currentAnnotations) =>
+            currentAnnotations.map((annotation) =>
+              annotation.id === nextAnnotation.id
+                ? {
+                    ...annotation,
+                    resolvedAt: nextAnnotation.resolved_at,
+                    resolvedByProfileId: nextAnnotation.resolved_by_profile_id,
+                  }
+                : annotation,
+            ),
+          );
+        },
+      )
       .subscribe();
 
     return () => {
@@ -207,6 +237,7 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
         commentText: trimmedComment,
         highlightAreas: props.highlightAreas,
         selectionData: (props.selectionData as Record<string, unknown> | undefined) ?? {},
+        fileName: file?.fileName,
       });
 
       setAnnotations((currentAnnotations) => {
@@ -227,6 +258,43 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
       setSaving(false);
     }
   }
+
+  async function handleResolveAnnotation(annotation: PdfAnnotation) {
+    if (!profile || !file) {
+      return;
+    }
+
+    setResolvingAnnotationId(annotation.id);
+    setErrorMessage(null);
+
+    try {
+      const resolvedAnnotation = await resolvePdfAnnotation({
+        annotationId: annotation.id,
+        fileId,
+        threadId,
+        profileId: profile.id,
+        fileName: file.fileName,
+      });
+
+      setAnnotations((currentAnnotations) =>
+        currentAnnotations.map((currentAnnotation) =>
+          currentAnnotation.id === resolvedAnnotation.id ? resolvedAnnotation : currentAnnotation,
+        ),
+      );
+
+      if (selectedAnnotationId === annotation.id) {
+        setSelectedAnnotationId(null);
+      }
+    } catch (resolveError) {
+      setErrorMessage(
+        resolveError instanceof Error ? resolveError.message : "Unable to resolve this comment.",
+      );
+    } finally {
+      setResolvingAnnotationId(null);
+    }
+  }
+
+  const activeAnnotations = annotations.filter((annotation) => !annotation.resolvedAt);
 
   function renderHighlightTarget(props: RenderHighlightTargetProps) {
     return (
@@ -298,6 +366,7 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
     return (
       <div>
         {annotations
+          .filter((annotation) => !annotation.resolvedAt)
           .flatMap((annotation) =>
             annotation.highlightAreas
               .filter((area) => area.pageIndex === props.pageIndex)
@@ -409,60 +478,80 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
           </p>
 
           <div className="mt-6 space-y-3">
-            {annotations.length ? (
-              annotations.map((annotation) => {
+            {activeAnnotations.length ? (
+              activeAnnotations.map((annotation) => {
                 const isSelected = selectedAnnotationId === annotation.id;
 
                 return (
-                  <button
-                    type="button"
+                  <div
                     key={annotation.id}
                     className={[
-                      "block w-full rounded-[22px] border px-4 py-4 text-left transition",
+                      "rounded-[22px] border px-4 py-4 text-left transition",
                       isSelected
                         ? "border-slate-900 bg-slate-900 text-white"
                         : "border-slate-200 bg-slate-50 text-slate-900 hover:border-slate-300 hover:bg-white",
                     ].join(" ")}
-                    onClick={() => {
-                      setSelectedAnnotationId(annotation.id);
-                      if (annotation.highlightAreas[0]) {
-                        highlightPluginInstance.jumpToHighlightArea(annotation.highlightAreas[0]);
-                      }
-                    }}
                   >
-                    <p
-                      className={[
-                        "text-xs uppercase tracking-[0.18em]",
-                        isSelected ? "text-slate-300" : "text-slate-400",
-                      ].join(" ")}
+                    <button
+                      type="button"
+                      className="block w-full text-left"
+                      onClick={() => {
+                        setSelectedAnnotationId(annotation.id);
+                        if (annotation.highlightAreas[0]) {
+                          highlightPluginInstance.jumpToHighlightArea(annotation.highlightAreas[0]);
+                        }
+                      }}
                     >
-                      Page {annotation.pageIndex + 1}
-                    </p>
-                    <p className="mt-2 text-sm font-semibold leading-6">
-                      “{annotation.quote || "Highlighted text"}”
-                    </p>
-                    <p
-                      className={[
-                        "mt-3 text-sm leading-6",
-                        isSelected ? "text-slate-100" : "text-slate-600",
-                      ].join(" ")}
-                    >
-                      {annotation.commentText}
-                    </p>
-                    <p
-                      className={[
-                        "mt-3 text-xs",
-                        isSelected ? "text-slate-300" : "text-slate-400",
-                      ].join(" ")}
-                    >
-                      {formatTimestamp(annotation.createdAt)}
-                    </p>
-                  </button>
+                      <p
+                        className={[
+                          "text-xs uppercase tracking-[0.18em]",
+                          isSelected ? "text-slate-300" : "text-slate-400",
+                        ].join(" ")}
+                      >
+                        Page {annotation.pageIndex + 1}
+                      </p>
+                      <p className="mt-2 text-sm font-semibold leading-6">
+                        “{annotation.quote || "Highlighted text"}”
+                      </p>
+                      <p
+                        className={[
+                          "mt-3 text-sm leading-6",
+                          isSelected ? "text-slate-100" : "text-slate-600",
+                        ].join(" ")}
+                      >
+                        {annotation.commentText}
+                      </p>
+                      <p
+                        className={[
+                          "mt-3 text-xs",
+                          isSelected ? "text-slate-300" : "text-slate-400",
+                        ].join(" ")}
+                      >
+                        {formatTimestamp(annotation.createdAt)}
+                      </p>
+                    </button>
+
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        type="button"
+                        className={[
+                          "rounded-full px-3 py-2 text-xs font-semibold transition",
+                          isSelected
+                            ? "border border-slate-700 bg-slate-800 text-white hover:bg-slate-700"
+                            : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100",
+                        ].join(" ")}
+                        onClick={() => void handleResolveAnnotation(annotation)}
+                        disabled={resolvingAnnotationId === annotation.id}
+                      >
+                        {resolvingAnnotationId === annotation.id ? "Resolving..." : "Resolve"}
+                      </button>
+                    </div>
+                  </div>
                 );
               })
             ) : (
               <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 px-4 py-6">
-                <p className="text-sm font-semibold text-slate-900">No highlights yet</p>
+                <p className="text-sm font-semibold text-slate-900">No active comments</p>
                 <p className="mt-2 text-sm leading-7 text-slate-500">
                   Select text inside the PDF, then add a note to pin a comment to that passage.
                 </p>

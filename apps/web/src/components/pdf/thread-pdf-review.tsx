@@ -21,9 +21,12 @@ import { highlightPlugin } from "@react-pdf-viewer/highlight";
 import { BrowserProfile, getOrCreateBrowserProfile } from "@/lib/browser-auth";
 import {
   createPdfAnnotation,
+  createPdfAnnotationReply,
   getThreadFileWithSignedUrl,
   listPdfAnnotations,
+  listPdfAnnotationReplies,
   PdfAnnotation,
+  PdfAnnotationReply,
   resolvePdfAnnotation,
 } from "@/lib/browser-thread-files";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -69,10 +72,13 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
   const [file, setFile] = useState<SelectedFile | null>(null);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [annotations, setAnnotations] = useState<PdfAnnotation[]>([]);
+  const [annotationReplies, setAnnotationReplies] = useState<PdfAnnotationReply[]>([]);
   const [draftComment, setDraftComment] = useState("");
+  const [draftReply, setDraftReply] = useState("");
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [replying, setReplying] = useState(false);
   const [resolvingAnnotationId, setResolvingAnnotationId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -88,10 +94,15 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
           return;
         }
 
-        const [{ file: loadedFile, signedUrl: loadedSignedUrl }, loadedAnnotations] =
+        const [
+          { file: loadedFile, signedUrl: loadedSignedUrl },
+          loadedAnnotations,
+          loadedReplies,
+        ] =
           await Promise.all([
             getThreadFileWithSignedUrl(threadId, fileId),
             listPdfAnnotations(fileId),
+            listPdfAnnotationReplies(fileId),
           ]);
 
         if (!cancelled) {
@@ -105,6 +116,10 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
           });
           setSignedUrl(loadedSignedUrl);
           setAnnotations(loadedAnnotations);
+          setAnnotationReplies(loadedReplies);
+          setSelectedAnnotationId(
+            loadedAnnotations.find((annotation) => !annotation.resolvedAt)?.id ?? null,
+          );
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -209,6 +224,45 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
           );
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "pdf_annotation_replies",
+          filter: `file_id=eq.${fileId}`,
+        },
+        (payload) => {
+          const nextReply = payload.new as {
+            id: string;
+            annotation_id: string;
+            file_id: string;
+            thread_id: string;
+            author_profile_id: string;
+            body: string;
+            created_at: string;
+          };
+
+          setAnnotationReplies((currentReplies) => {
+            if (currentReplies.some((reply) => reply.id === nextReply.id)) {
+              return currentReplies;
+            }
+
+            return [
+              ...currentReplies,
+              {
+                id: nextReply.id,
+                annotationId: nextReply.annotation_id,
+                fileId: nextReply.file_id,
+                threadId: nextReply.thread_id,
+                authorProfileId: nextReply.author_profile_id,
+                body: nextReply.body,
+                createdAt: nextReply.created_at,
+              },
+            ];
+          });
+        },
+      )
       .subscribe();
 
     return () => {
@@ -298,7 +352,47 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
     }
   }
 
+  async function handleSendReply() {
+    if (!profile || !file || !selectedAnnotationId || !draftReply.trim()) {
+      return;
+    }
+
+    setReplying(true);
+    setErrorMessage(null);
+
+    try {
+      const createdReply = await createPdfAnnotationReply({
+        annotationId: selectedAnnotationId,
+        fileId,
+        threadId,
+        profileId: profile.id,
+        body: draftReply,
+        fileName: file.fileName,
+      });
+
+      setAnnotationReplies((currentReplies) => {
+        if (currentReplies.some((reply) => reply.id === createdReply.id)) {
+          return currentReplies;
+        }
+
+        return [...currentReplies, createdReply];
+      });
+      setDraftReply("");
+    } catch (replyError) {
+      setErrorMessage(
+        replyError instanceof Error ? replyError.message : "Unable to send this reply.",
+      );
+    } finally {
+      setReplying(false);
+    }
+  }
+
   const activeAnnotations = annotations.filter((annotation) => !annotation.resolvedAt);
+  const selectedAnnotation =
+    activeAnnotations.find((annotation) => annotation.id === selectedAnnotationId) ?? null;
+  const selectedAnnotationReplies = selectedAnnotation
+    ? annotationReplies.filter((reply) => reply.annotationId === selectedAnnotation.id)
+    : [];
 
   function renderHighlightTarget(props: RenderHighlightTargetProps) {
     return (
@@ -504,6 +598,7 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
                         if (annotation.highlightAreas[0]) {
                           highlightPluginInstance.jumpToHighlightArea(annotation.highlightAreas[0]);
                         }
+                        setDraftReply("");
                       }}
                     >
                       <p
@@ -562,6 +657,74 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
               </div>
             )}
           </div>
+
+          {selectedAnnotation ? (
+            <div className="mt-6 border-t border-slate-100 pt-6">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Discussion</p>
+              <p className="mt-3 text-sm font-semibold leading-6 text-slate-900">
+                “{selectedAnnotation.quote || "Highlighted text"}”
+              </p>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                {selectedAnnotation.commentText}
+              </p>
+
+              <div className="mt-4 space-y-3">
+                {selectedAnnotationReplies.length ? (
+                  selectedAnnotationReplies.map((reply) => {
+                    const isOwnReply = reply.authorProfileId === profile.id;
+
+                    return (
+                      <div
+                        key={reply.id}
+                        className={[
+                          "rounded-[18px] px-4 py-3",
+                          isOwnReply
+                            ? "bg-slate-900 text-white"
+                            : "border border-slate-200 bg-slate-50 text-slate-900",
+                        ].join(" ")}
+                      >
+                        <p className="text-sm leading-6">{reply.body}</p>
+                        <p
+                          className={[
+                            "mt-2 text-xs",
+                            isOwnReply ? "text-slate-300" : "text-slate-500",
+                          ].join(" ")}
+                        >
+                          {formatTimestamp(reply.createdAt)}
+                        </p>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-[18px] border border-dashed border-slate-200 bg-slate-50 px-4 py-4">
+                    <p className="text-sm text-slate-500">
+                      No replies yet. Use this space to discuss the highlighted passage.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <textarea
+                  value={draftReply}
+                  onChange={(event) => setDraftReply(event.target.value)}
+                  rows={3}
+                  className="w-full resize-none rounded-[18px] border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900"
+                  placeholder="Reply to this PDF comment..."
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    className="rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60"
+                    disabled={replying || !draftReply.trim()}
+                    onClick={() => void handleSendReply()}
+                  >
+                    {replying ? "Sending..." : "Send reply"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </aside>
       </div>
     </main>

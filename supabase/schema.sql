@@ -176,6 +176,20 @@ create table public.thread_reads (
 create index thread_reads_profile_id_last_read_at_idx
 on public.thread_reads (profile_id, last_read_at desc);
 
+create table public.pdf_annotation_replies (
+  id uuid primary key default gen_random_uuid(),
+  annotation_id uuid not null references public.pdf_annotations (id) on delete cascade,
+  file_id uuid not null references public.thread_files (id) on delete cascade,
+  thread_id uuid not null references public.threads (id) on delete cascade,
+  author_profile_id uuid not null references public.profiles (id) on delete cascade,
+  body text not null,
+  created_at timestamptz not null default timezone('utc', now()),
+  check (length(trim(body)) > 0)
+);
+
+create index pdf_annotation_replies_annotation_id_created_at_idx
+on public.pdf_annotation_replies (annotation_id, created_at asc);
+
 create trigger set_clients_updated_at
 before update on public.clients
 for each row execute function public.set_row_updated_at();
@@ -497,6 +511,7 @@ alter table public.clients enable row level security;
 alter table public.thread_files enable row level security;
 alter table public.pdf_annotations enable row level security;
 alter table public.thread_reads enable row level security;
+alter table public.pdf_annotation_replies enable row level security;
 
 create policy "profiles are viewable by relationship members"
 on public.profiles
@@ -788,4 +803,41 @@ using (
 with check (
   public.is_thread_participant(thread_id)
   and profile_id = auth.uid()
+);
+
+create policy "thread participants can read pdf annotation replies"
+on public.pdf_annotation_replies
+for select
+to authenticated
+using (public.is_thread_participant(thread_id));
+
+create policy "thread participants can create pdf annotation replies"
+on public.pdf_annotation_replies
+for insert
+to authenticated
+with check (
+  public.is_thread_participant(thread_id)
+  and author_profile_id = auth.uid()
+);
+
+create policy "authors can update their pdf annotation replies"
+on public.pdf_annotation_replies
+for update
+to authenticated
+using (
+  public.is_thread_participant(thread_id)
+  and author_profile_id = auth.uid()
+)
+with check (
+  public.is_thread_participant(thread_id)
+  and author_profile_id = auth.uid()
+);
+
+create policy "authors can delete their pdf annotation replies"
+on public.pdf_annotation_replies
+for delete
+to authenticated
+using (
+  public.is_thread_participant(thread_id)
+  and author_profile_id = auth.uid()
 );

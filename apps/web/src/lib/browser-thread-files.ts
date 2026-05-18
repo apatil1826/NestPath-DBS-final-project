@@ -40,6 +40,16 @@ export type PdfAnnotation = {
   createdAt: string;
 };
 
+export type PdfAnnotationReply = {
+  id: string;
+  annotationId: string;
+  fileId: string;
+  threadId: string;
+  authorProfileId: string;
+  body: string;
+  createdAt: string;
+};
+
 const THREAD_FILES_BUCKET = "thread-files";
 const MAX_PDF_SIZE_BYTES = 20 * 1024 * 1024;
 
@@ -68,6 +78,16 @@ type DbPdfAnnotation = {
   selection_data: Record<string, unknown>;
   resolved_at: string | null;
   resolved_by_profile_id: string | null;
+  created_at: string;
+};
+
+type DbPdfAnnotationReply = {
+  id: string;
+  annotation_id: string;
+  file_id: string;
+  thread_id: string;
+  author_profile_id: string;
+  body: string;
   created_at: string;
 };
 
@@ -132,6 +152,18 @@ function mapPdfAnnotation(annotation: DbPdfAnnotation): PdfAnnotation {
     resolvedAt: annotation.resolved_at,
     resolvedByProfileId: annotation.resolved_by_profile_id,
     createdAt: annotation.created_at,
+  };
+}
+
+function mapPdfAnnotationReply(reply: DbPdfAnnotationReply): PdfAnnotationReply {
+  return {
+    id: reply.id,
+    annotationId: reply.annotation_id,
+    fileId: reply.file_id,
+    threadId: reply.thread_id,
+    authorProfileId: reply.author_profile_id,
+    body: reply.body,
+    createdAt: reply.created_at,
   };
 }
 
@@ -258,6 +290,21 @@ export async function listPdfAnnotations(fileId: string) {
   return ((data as DbPdfAnnotation[] | null) ?? []).map(mapPdfAnnotation);
 }
 
+export async function listPdfAnnotationReplies(fileId: string) {
+  const supabase = createSupabaseBrowserClient();
+  const { data, error } = await supabase
+    .from("pdf_annotation_replies")
+    .select("id, annotation_id, file_id, thread_id, author_profile_id, body, created_at")
+    .eq("file_id", fileId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(getErrorMessage(error, "Unable to load PDF comment replies."));
+  }
+
+  return ((data as DbPdfAnnotationReply[] | null) ?? []).map(mapPdfAnnotationReply);
+}
+
 export async function createPdfAnnotation(input: {
   fileId: string;
   threadId: string;
@@ -358,4 +405,56 @@ export async function resolvePdfAnnotation(input: {
   );
 
   return resolvedAnnotation;
+}
+
+export async function createPdfAnnotationReply(input: {
+  annotationId: string;
+  fileId: string;
+  threadId: string;
+  profileId: string;
+  body: string;
+  fileName?: string;
+}) {
+  const trimmedBody = input.body.trim();
+
+  if (!trimmedBody) {
+    throw new Error("Write a reply before sending.");
+  }
+
+  const supabase = createSupabaseBrowserClient();
+  const { data, error } = await supabase
+    .from("pdf_annotation_replies")
+    .insert({
+      annotation_id: input.annotationId,
+      file_id: input.fileId,
+      thread_id: input.threadId,
+      author_profile_id: input.profileId,
+      body: trimmedBody,
+    })
+    .select("id, annotation_id, file_id, thread_id, author_profile_id, body, created_at")
+    .single<DbPdfAnnotationReply>();
+
+  if (error || !data) {
+    throw new Error(getErrorMessage(error, "Unable to send this PDF reply."));
+  }
+
+  const createdReply = mapPdfAnnotationReply(data);
+
+  await sendThreadMessage(
+    input.threadId,
+    input.profileId,
+    `Added a reply to a PDF comment${input.fileName ? ` on ${input.fileName}` : ""}.`,
+    {
+      pdfAnnotation: {
+        annotationId: input.annotationId,
+        fileId: input.fileId,
+        fileName: input.fileName ?? null,
+        action: "replied",
+        replyId: createdReply.id,
+      },
+    },
+    "system",
+  );
+
+  return createdReply;
 }

@@ -150,6 +150,8 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
             color: string;
             highlight_areas: HighlightArea[];
             selection_data: Record<string, unknown>;
+            resolved_at: string | null;
+            resolved_by_profile_id: string | null;
             created_at: string;
           };
 
@@ -171,6 +173,8 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
                 color: nextAnnotation.color,
                 highlightAreas: nextAnnotation.highlight_areas,
                 selectionData: nextAnnotation.selection_data,
+                resolvedAt: nextAnnotation.resolved_at,
+                resolvedByProfileId: nextAnnotation.resolved_by_profile_id,
                 createdAt: nextAnnotation.created_at,
               },
             ];

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 
 const ThreadPdfReview = dynamic(
   () => import("@/components/pdf/thread-pdf-review").then((module) => module.ThreadPdfReview),
@@ -19,6 +19,20 @@ const ThreadPdfReview = dynamic(
 
 export function ThreadPdfReviewShell() {
   const params = useParams<{ threadId: string; fileId: string }>();
+  const searchParams = useSearchParams();
+  const relationshipId = searchParams.get("relationshipId");
+  const activeThreadId = searchParams.get("thread") ?? params.threadId;
+  const backHref = relationshipId
+    ? searchParams.get("thread")
+      ? `/relationships/${relationshipId}?thread=${activeThreadId}`
+      : `/relationships/${relationshipId}`
+    : `/messages/${params.threadId}`;
 
-  return <ThreadPdfReview threadId={params.threadId} fileId={params.fileId} />;
+  return (
+    <ThreadPdfReview
+      threadId={params.threadId}
+      fileId={params.fileId}
+      backHref={backHref}
+    />
+  );
 }

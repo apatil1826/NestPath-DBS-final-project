@@ -12,6 +12,7 @@ import {
   InboxThread,
   listDirectThreadsForProfile,
 } from "@/lib/browser-messaging";
+import { getThreadContext } from "@/lib/browser-workspaces";
 
 type ManualClientRecord = {
   id: string;
@@ -266,8 +267,17 @@ export default function ClientsPage() {
     setErrorMessage(null);
 
     try {
+      const existingThread = buyerThreadMap[buyer.id];
+
+      if (existingThread) {
+        router.push(`/relationships/${existingThread.relationshipId}`);
+        return;
+      }
+
       const threadId = await createOrOpenDirectThread(profile, buyer);
-      router.push(`/messages/${threadId}`);
+      const threadContext = await getThreadContext(threadId);
+
+      router.push(`/relationships/${threadContext.relationshipId}`);
     } catch (conversationError) {
       setErrorMessage(
         conversationError instanceof Error

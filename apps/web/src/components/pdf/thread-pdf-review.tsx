@@ -34,6 +34,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 type ThreadPdfReviewProps = {
   fileId: string;
   threadId: string;
+  backHref: string;
 };
 
 type SelectedFile = {
@@ -66,7 +67,11 @@ function formatFileSize(fileSize: number) {
   return `${Math.max(1, Math.round(fileSize / 1024))} KB`;
 }
 
-export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
+export function ThreadPdfReview({
+  fileId,
+  threadId,
+  backHref,
+}: ThreadPdfReviewProps) {
   const router = useRouter();
   const [profile, setProfile] = useState<BrowserProfile | null>(null);
   const [file, setFile] = useState<SelectedFile | null>(null);
@@ -512,7 +517,7 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
           <p className="text-sm font-semibold text-rose-800">Unable to load this PDF</p>
           <p className="mt-2 text-sm text-rose-700">{errorMessage ?? "Please try again."}</p>
           <Link
-            href={`/messages/${threadId}`}
+            href={backHref}
             className="mt-5 inline-flex rounded-full border border-slate-200 px-5 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
           >
             Back to conversation
@@ -538,7 +543,7 @@ export function ThreadPdfReview({ fileId, threadId }: ThreadPdfReviewProps) {
 
         <div className="flex flex-wrap gap-3">
           <Link
-            href={`/messages/${threadId}`}
+            href={backHref}
             className="rounded-full border border-slate-200 px-5 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
           >
             Back to conversation

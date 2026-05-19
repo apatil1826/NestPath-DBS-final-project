@@ -162,7 +162,7 @@ export default function MessagesInboxPage() {
             {threads.map((thread) => (
               <Link
                 key={thread.id}
-                href={`/messages/${thread.id}`}
+                href={`/relationships/${thread.relationshipId}`}
                 className="rounded-[22px] border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-300 hover:bg-white"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">

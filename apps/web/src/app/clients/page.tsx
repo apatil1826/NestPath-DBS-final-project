@@ -291,8 +291,8 @@ export default function ClientsPage() {
 
   if (loading) {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-[1300px] items-center justify-center px-4 py-6 sm:px-6 lg:px-10">
-        <div className="rounded-[30px] border border-slate-200 bg-white p-8 shadow-sm">
+      <main className="np-page items-center justify-center">
+        <div className="np-surface rounded-[28px] p-8">
           <p className="text-sm text-slate-500">Loading the client directory...</p>
         </div>
       </main>
@@ -304,145 +304,143 @@ export default function ClientsPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[1300px] flex-col gap-8 px-4 py-6 sm:px-6 lg:px-10">
-      <header className="flex flex-wrap items-end justify-between gap-4 rounded-[30px] border border-slate-200 bg-white p-8 shadow-sm">
+    <main className="np-page">
+      <header className="np-surface rounded-[28px] px-7 py-6 sm:px-8">
         <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Agent portal</p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
+          <p className="np-kicker">Agent portal</p>
+          <h1 className="mt-3 text-[2rem] font-semibold tracking-tight text-slate-950 sm:text-[2.55rem]">
             Client directory
           </h1>
-          <p className="mt-3 max-w-2xl text-base leading-8 text-slate-500">
-            This page now does two jobs: it shows every NestPath user currently tagged as a buyer,
-            and it gives you an agent-specific list for your own manually added clients.
+          <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-500">
+            Browse live buyer relationships, jump into a shared workspace, and keep private CRM-style records for off-platform contacts.
           </p>
         </div>
 
         <div className="flex flex-wrap gap-3">
           <Link
             href="/agent"
-            className="rounded-full border border-slate-200 px-5 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
+            className="np-button-secondary"
           >
             Portal home
           </Link>
           <Link
             href="/settings"
-            className="rounded-full border border-slate-200 px-5 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
+            className="np-button-secondary"
           >
             Settings
           </Link>
-          <SignOutButton className="rounded-full border border-slate-200 px-5 py-3 text-sm text-slate-700 transition hover:bg-slate-50" />
+          <SignOutButton className="np-button-secondary" />
         </div>
       </header>
 
       {errorMessage ? (
-        <section className="rounded-[24px] border border-rose-200 bg-rose-50 p-5">
+        <section className="rounded-[20px] border border-rose-200 bg-rose-50/85 p-4">
           <p className="text-sm font-semibold text-rose-800">Something went wrong</p>
           <p className="mt-2 text-sm leading-6 text-rose-700">{errorMessage}</p>
         </section>
       ) : null}
 
-      <section className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Directory summary</p>
-          <h2 className="mt-3 text-3xl font-semibold text-slate-900">{buyers.length}</h2>
-          <p className="mt-2 text-sm leading-7 text-slate-500">
-            buyer accounts currently available in NestPath
-          </p>
-
-          <div className="mt-6 rounded-[22px] border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-semibold text-slate-900">Manual list</p>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-              You also have <span className="font-semibold text-slate-900">{manualClients.length}</span>{" "}
-              manual client {manualClients.length === 1 ? "record" : "records"} tied specifically
-              to your agent account.
+      <section className="np-shell overflow-hidden">
+        <div className="grid gap-0 lg:grid-cols-[290px_minmax(0,1fr)]">
+          <aside className="np-pane-muted border-b border-r border-[var(--line)] px-5 py-5 lg:border-b-0">
+            <p className="np-kicker">Directory summary</p>
+            <h2 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">{buyers.length}</h2>
+            <p className="mt-1 text-sm leading-7 text-slate-500">
+              buyer accounts currently available in NestPath
             </p>
-          </div>
-        </aside>
 
-        <section className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Buyer accounts</p>
-              <h2 className="mt-3 text-2xl font-semibold text-slate-900">
-                {buyers.length} buyer{buyers.length === 1 ? "" : "s"}
-              </h2>
+            <div className="np-card mt-6 p-4">
+              <p className="text-sm font-semibold text-slate-900">Relationship-first</p>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Every buyer opens into one shared workspace with a general thread and property channels.
+              </p>
             </div>
-          </div>
 
-          {buyers.length ? (
-            <div className="mt-6 grid gap-3">
-              {buyers.map((buyer) => (
-                <div
-                  key={buyer.id}
-                  className="flex flex-wrap items-center justify-between gap-4 rounded-[22px] border border-slate-200 bg-slate-50 p-4"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-                      {getInitials(buyer.full_name)}
-                    </div>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-slate-900">{buyer.full_name}</p>
-                        {(buyerThreadMap[buyer.id]?.unreadCount ?? 0) > 0 ? (
-                          <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white">
-                            {buyerThreadMap[buyer.id].unreadCount} new
-                          </span>
-                        ) : null}
+            <div className="np-card-muted mt-4 p-4">
+              <p className="text-sm font-semibold text-slate-900">Manual records</p>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                {manualClients.length} private client {manualClients.length === 1 ? "record" : "records"} tied to your agent account.
+              </p>
+            </div>
+          </aside>
+
+          <section className="bg-white/72 px-6 py-5">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="np-kicker">Buyer accounts</p>
+                <h2 className="mt-2 text-[1.45rem] font-semibold tracking-tight text-slate-950">
+                  {buyers.length} buyer{buyers.length === 1 ? "" : "s"}
+                </h2>
+              </div>
+            </div>
+
+            {buyers.length ? (
+              <div className="mt-5 grid gap-3">
+                {buyers.map((buyer) => (
+                  <div
+                    key={buyer.id}
+                    className="np-list-row flex flex-wrap items-center justify-between gap-4 px-4 py-4"
+                  >
+                    <div className="flex min-w-0 items-center gap-4">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(15,23,42,0.12)]">
+                        {getInitials(buyer.full_name)}
                       </div>
-                      <p className="mt-1 text-sm text-slate-500">{buyer.email}</p>
-                      {buyerThreadMap[buyer.id]?.lastMessagePreview ? (
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-slate-900">{buyer.full_name}</p>
+                          <span className="np-pill">Buyer</span>
+                          {(buyerThreadMap[buyer.id]?.unreadCount ?? 0) > 0 ? (
+                            <span className="np-pill-unread">
+                              {buyerThreadMap[buyer.id].unreadCount} new
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-1 text-sm text-slate-500">{buyer.email}</p>
                         <p
                           className={[
-                            "mt-2 text-sm leading-6",
+                            "mt-2 line-clamp-2 text-sm leading-6",
                             (buyerThreadMap[buyer.id]?.unreadCount ?? 0) > 0
                               ? "font-semibold text-slate-900"
                               : "text-slate-500",
                           ].join(" ")}
                         >
-                          {buyerThreadMap[buyer.id].lastMessagePreview}
+                          {buyerThreadMap[buyer.id]?.lastMessagePreview ?? "No relationship opened yet."}
                         </p>
-                      ) : null}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">
-                      Buyer
-                    </div>
                     <button
                       type="button"
                       onClick={() => handleStartConversation(buyer)}
-                      className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-70"
+                      className="np-button-primary !px-4 !py-2 text-xs disabled:opacity-70"
                     >
                       {startingConversationFor === buyer.id
                         ? "Opening..."
                         : buyerThreadMap[buyer.id]
-                          ? "Open conversation"
-                          : "Start conversation"}
+                          ? "Open workspace"
+                          : "Start relationship"}
                     </button>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-8 rounded-[24px] border border-slate-200 bg-slate-50 p-6">
-              <p className="text-sm font-semibold text-slate-900">No buyers yet</p>
-              <p className="mt-2 text-sm leading-7 text-slate-500">
-                As soon as other users switch their settings to buyer mode, they&rsquo;ll appear
-                here.
-              </p>
-            </div>
-          )}
-        </section>
+                ))}
+              </div>
+            ) : (
+              <div className="np-card-muted mt-8 p-6">
+                <p className="text-sm font-semibold text-slate-900">No buyers yet</p>
+                <p className="mt-2 text-sm leading-7 text-slate-500">
+                  As soon as other users switch their settings to buyer mode, they&rsquo;ll appear here.
+                </p>
+              </div>
+            )}
+          </section>
+        </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
-        <div className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Manual additions</p>
-          <h2 className="mt-3 text-2xl font-semibold text-slate-900">Add a private client record</h2>
-          <p className="mt-3 text-sm leading-7 text-slate-500">
-            Use this when someone matters to your business but isn&rsquo;t yet a buyer account in the
-            app, or when you want an agent-specific note card separate from the global buyer list.
+      <section className="grid gap-6 lg:grid-cols-[390px_minmax(0,1fr)]">
+        <div className="np-surface rounded-[26px] p-6">
+          <p className="np-kicker">Manual additions</p>
+          <h2 className="mt-3 text-[1.45rem] font-semibold tracking-tight text-slate-950">Add a private client record</h2>
+          <p className="mt-2 text-sm leading-7 text-slate-500">
+            Keep side notes for people who matter to your business but should not appear in the shared buyer directory yet.
           </p>
 
           <form onSubmit={handleCreateManualClient} className="mt-6 space-y-4">
@@ -451,7 +449,7 @@ export default function ClientsPage() {
               <input
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
-                className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900"
+                className="np-field"
                 placeholder="Jordan Lee"
               />
             </label>
@@ -463,7 +461,7 @@ export default function ClientsPage() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   type="email"
-                  className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900"
+                  className="np-field"
                   placeholder="buyer@example.com"
                 />
               </label>
@@ -473,7 +471,7 @@ export default function ClientsPage() {
                 <input
                   value={phone}
                   onChange={(event) => setPhone(event.target.value)}
-                  className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900"
+                  className="np-field"
                   placeholder="(555) 010-1234"
                 />
               </label>
@@ -485,24 +483,22 @@ export default function ClientsPage() {
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
                 rows={4}
-                className="w-full resize-none rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900"
+                className="np-textarea"
                 placeholder="Preferred neighborhoods, budget, timeline..."
               />
             </label>
 
-            <button className="w-full rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-70">
+            <button className="np-button-primary w-full disabled:opacity-70">
               {saving ? "Saving..." : "Add manual client"}
             </button>
           </form>
         </div>
 
-        <div className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="np-surface rounded-[26px] p-6">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                Manual client records
-              </p>
-              <h2 className="mt-3 text-2xl font-semibold text-slate-900">
+              <p className="np-kicker">Manual client records</p>
+              <h2 className="mt-2 text-[1.45rem] font-semibold tracking-tight text-slate-950">
                 {manualClients.length} record{manualClients.length === 1 ? "" : "s"}
               </h2>
             </div>
@@ -513,14 +509,13 @@ export default function ClientsPage() {
               {manualClients.map((client) => (
                 <div
                   key={client.id}
-                  className="rounded-[22px] border border-slate-200 bg-slate-50 p-4"
+                  className="np-list-row p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-slate-900">{client.full_name}</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        {[client.email, client.phone].filter(Boolean).join(" • ") ||
-                          "No contact details"}
+                        {[client.email, client.phone].filter(Boolean).join(" • ") || "No contact details"}
                       </p>
                       {client.notes ? (
                         <p className="mt-3 text-sm leading-6 text-slate-600">{client.notes}</p>
@@ -530,7 +525,7 @@ export default function ClientsPage() {
                     <button
                       type="button"
                       onClick={() => toggleManualClientStatus(client)}
-                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                      className="np-button-secondary !px-4 !py-2 text-xs"
                     >
                       {client.status === "archived" ? "Restore" : "Archive"}
                     </button>
@@ -539,11 +534,10 @@ export default function ClientsPage() {
               ))}
             </div>
           ) : (
-            <div className="mt-8 rounded-[24px] border border-slate-200 bg-slate-50 p-6">
+            <div className="np-card-muted mt-8 p-6">
               <p className="text-sm font-semibold text-slate-900">No manual additions yet</p>
               <p className="mt-2 text-sm leading-7 text-slate-500">
-                Add the first one when someone should live in your personal client list even if they
-                don&rsquo;t belong in the global buyer directory for your active conversations yet.
+                Add the first one when someone should live in your personal client list even if they don&rsquo;t belong in the global buyer directory yet.
               </p>
             </div>
           )}

@@ -3,8 +3,21 @@
 @tailwind utilities;
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f4f3ef;
+  --foreground: #15202b;
+  --paper: rgba(255, 255, 255, 0.82);
+  --paper-strong: rgba(255, 255, 255, 0.94);
+  --paper-soft: rgba(251, 250, 246, 0.9);
+  --line: rgba(15, 23, 42, 0.08);
+  --line-strong: rgba(15, 23, 42, 0.14);
+  --muted: #667085;
+  --muted-strong: #475467;
+  --accent: #1b5cff;
+  --accent-soft: rgba(27, 92, 255, 0.09);
+  --accent-strong: #0f4de0;
+  --success: #067647;
+  --warning: #b54708;
+  --danger: #b42318;
   --font-display: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
 }
 
@@ -13,7 +26,10 @@
 }
 
 html {
-  background: #f8fafc;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.92), transparent 32%),
+    radial-gradient(circle at top right, rgba(219, 229, 255, 0.44), transparent 24%),
+    linear-gradient(180deg, #f8f7f3 0%, #f2f4f7 100%);
 }
 
 body {
@@ -22,6 +38,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -32,4 +49,172 @@ a {
 ::selection {
   background: rgba(15, 23, 42, 0.12);
   color: #0f172a;
+}
+
+@layer components {
+  .np-page {
+    @apply mx-auto flex min-h-screen w-full max-w-[1460px] flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8;
+  }
+
+  .np-surface {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    box-shadow:
+      0 1px 2px rgba(16, 24, 40, 0.04),
+      0 18px 44px rgba(15, 23, 42, 0.05);
+    backdrop-filter: blur(18px);
+  }
+
+  .np-surface-strong {
+    background: var(--paper-strong);
+    border: 1px solid var(--line);
+    box-shadow:
+      0 1px 2px rgba(16, 24, 40, 0.04),
+      0 20px 56px rgba(15, 23, 42, 0.07);
+    backdrop-filter: blur(18px);
+  }
+
+  .np-shell {
+    @apply rounded-[28px];
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(252, 252, 250, 0.92) 100%);
+    border: 1px solid var(--line);
+    box-shadow:
+      0 1px 2px rgba(16, 24, 40, 0.04),
+      0 24px 64px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(18px);
+  }
+
+  .np-shell-divider {
+    border-color: var(--line);
+  }
+
+  .np-pane-muted {
+    background: linear-gradient(180deg, rgba(248, 248, 245, 0.94) 0%, rgba(244, 245, 247, 0.9) 100%);
+  }
+
+  .np-pane-warm {
+    background: linear-gradient(180deg, rgba(251, 250, 246, 0.94) 0%, rgba(247, 246, 242, 0.96) 100%);
+  }
+
+  .np-kicker {
+    @apply text-[11px] font-semibold uppercase tracking-[0.22em];
+    color: #98a2b3;
+  }
+
+  .np-title {
+    @apply text-[2.1rem] font-semibold tracking-tight text-slate-950 sm:text-[2.65rem];
+  }
+
+  .np-subtitle {
+    @apply text-sm leading-7;
+    color: var(--muted);
+  }
+
+  .np-section-title {
+    @apply text-lg font-semibold tracking-tight text-slate-950;
+  }
+
+  .np-card {
+    @apply rounded-[22px];
+    background: rgba(255, 255, 255, 0.76);
+    border: 1px solid var(--line);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+  }
+
+  .np-card-muted {
+    @apply rounded-[20px];
+    background: rgba(248, 248, 245, 0.9);
+    border: 1px solid var(--line);
+  }
+
+  .np-list-row {
+    @apply rounded-[18px] transition;
+    background: rgba(255, 255, 255, 0.66);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+  }
+
+  .np-list-row:hover {
+    border-color: rgba(15, 23, 42, 0.12);
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  .np-button {
+    @apply inline-flex items-center justify-center rounded-full px-4 py-2.5 text-sm font-medium transition;
+  }
+
+  .np-button-primary {
+    @apply np-button text-white;
+    background: linear-gradient(135deg, #15202b 0%, #304255 100%);
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+  }
+
+  .np-button-primary:hover {
+    background: linear-gradient(135deg, #1d2a38 0%, #3b5168 100%);
+  }
+
+  .np-button-secondary {
+    @apply np-button;
+    color: #344054;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid var(--line);
+  }
+
+  .np-button-secondary:hover {
+    background: rgba(255, 255, 255, 0.94);
+    border-color: var(--line-strong);
+  }
+
+  .np-pill {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold;
+    background: rgba(15, 23, 42, 0.06);
+    color: #344054;
+  }
+
+  .np-pill-accent {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .np-pill-unread {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold text-white;
+    background: linear-gradient(135deg, #1b5cff 0%, #4c7cff 100%);
+  }
+
+  .np-field,
+  .np-textarea,
+  .np-select {
+    @apply w-full rounded-[16px] px-4 py-3 text-sm text-slate-900 outline-none transition;
+    background: rgba(255, 255, 255, 0.86);
+    border: 1px solid rgba(15, 23, 42, 0.1);
+  }
+
+  .np-field::placeholder,
+  .np-textarea::placeholder {
+    color: #98a2b3;
+  }
+
+  .np-field:focus,
+  .np-textarea:focus,
+  .np-select:focus {
+    border-color: rgba(27, 92, 255, 0.42);
+    box-shadow: 0 0 0 4px rgba(27, 92, 255, 0.08);
+  }
+
+  .np-tab {
+    @apply inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition;
+    color: #667085;
+  }
+
+  .np-tab:hover {
+    background: rgba(15, 23, 42, 0.04);
+    color: #344054;
+  }
+
+  .np-tab-active {
+    background: rgba(255, 255, 255, 0.84);
+    border: 1px solid var(--line);
+    color: #0f172a;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+  }
 }

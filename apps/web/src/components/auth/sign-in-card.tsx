@@ -110,8 +110,8 @@ export function SignInCard({
   }
 
   return (
-    <div className="rounded-[30px] border border-slate-200 bg-slate-50 p-6 shadow-sm">
-      <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Supabase auth</p>
+    <div className="np-pane-warm rounded-[26px] border border-[var(--line)] p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
+      <p className="np-kicker">Supabase auth</p>
       <h2 className="mt-3 text-2xl font-semibold text-slate-900">Sign in</h2>
       <p className="mt-3 text-sm leading-7 text-slate-500">
         Uses email + password (no magic link emails). Create an account once, then sign in normally.
@@ -127,10 +127,10 @@ export function SignInCard({
               setErrorMessage("");
             }}
             className={[
-              "rounded-[22px] border px-4 py-4 text-left transition",
+              "rounded-[18px] px-4 py-4 text-left transition",
               mode === "sign_in"
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+                ? "bg-slate-950 text-white shadow-[0_14px_28px_rgba(15,23,42,0.18)]"
+                : "np-list-row text-slate-600",
             ].join(" ")}
           >
             <p className="text-sm font-semibold">Sign in</p>
@@ -146,10 +146,10 @@ export function SignInCard({
               setErrorMessage("");
             }}
             className={[
-              "rounded-[22px] border px-4 py-4 text-left transition",
+              "rounded-[18px] px-4 py-4 text-left transition",
               mode === "sign_up"
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+                ? "bg-slate-950 text-white shadow-[0_14px_28px_rgba(15,23,42,0.18)]"
+                : "np-list-row text-slate-600",
             ].join(" ")}
           >
             <p className="text-sm font-semibold">Create account</p>
@@ -165,7 +165,7 @@ export function SignInCard({
             required={mode === "sign_up"}
             value={fullName}
             onChange={(event) => setFullName(event.target.value)}
-            className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900"
+            className="np-field"
             placeholder="Jordan Lee"
           />
         </label>
@@ -177,7 +177,7 @@ export function SignInCard({
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900"
+            className="np-field"
             placeholder="name@example.com"
           />
         </label>
@@ -189,7 +189,7 @@ export function SignInCard({
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900"
+            className="np-field"
             placeholder="••••••••"
             minLength={8}
             autoComplete={mode === "sign_in" ? "current-password" : "new-password"}
@@ -199,7 +199,7 @@ export function SignInCard({
         <button
           type="submit"
           disabled={status === "submitting"}
-          className="w-full rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-70"
+          className="np-button-primary w-full disabled:cursor-not-allowed disabled:opacity-70"
         >
           {status === "submitting"
             ? mode === "sign_up"

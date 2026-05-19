@@ -83,8 +83,8 @@ export default function SettingsPage() {
 
   if (status === "loading") {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-[1100px] items-center justify-center px-4 py-6 sm:px-6 lg:px-10">
-        <div className="rounded-[30px] border border-slate-200 bg-white p-8 shadow-sm">
+      <main className="np-page items-center justify-center">
+        <div className="np-surface rounded-[28px] p-8">
           <p className="text-sm text-slate-500">Loading your settings...</p>
         </div>
       </main>
@@ -96,18 +96,20 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[1100px] flex-col gap-8 px-4 py-6 sm:px-6 lg:px-10">
-      <header className="rounded-[30px] border border-slate-200 bg-white p-8 shadow-sm">
-        <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Profile settings</p>
-        <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
+    <main className="np-page">
+      <header className="np-surface rounded-[28px] px-7 py-6 sm:px-8">
+        <p className="np-kicker">Profile settings</p>
+        <h1 className="mt-3 text-[2rem] font-semibold tracking-tight text-slate-950 sm:text-[2.5rem]">
           Settings
         </h1>
-        <p className="mt-4 max-w-2xl text-base leading-8 text-slate-500">
+        <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-500">
           Choose which mode you&rsquo;re in. The UI will adapt based on your selection.
         </p>
       </header>
 
-      <section className="rounded-[30px] border border-slate-200 bg-white p-8 shadow-sm">
+      <section className="np-shell overflow-hidden">
+        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="bg-white/72 px-7 py-6">
         <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-2">
           <div>
             <label className="block">
@@ -115,7 +117,7 @@ export default function SettingsPage() {
               <input
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
-                className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900"
+                className="np-field"
               />
             </label>
 
@@ -124,14 +126,13 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-6">
+          <div className="np-card-muted p-6">
             <p className="text-sm font-semibold text-slate-900">Mode</p>
             <p className="mt-2 text-sm leading-7 text-slate-500">
-              Agent mode unlocks client directory and messaging setup. Buyer mode will later show a
-              simpler search workspace.
+              Agent mode unlocks client directory and relationship workspaces. Buyer mode keeps things conversation-first.
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <label className="flex cursor-pointer items-start gap-3 rounded-[18px] border border-slate-200 bg-white p-4">
+              <label className="np-list-row flex cursor-pointer items-start gap-3 p-4">
                 <input
                   type="radio"
                   name="role"
@@ -142,11 +143,11 @@ export default function SettingsPage() {
                 />
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Agent</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">Clients, pipeline, inbox.</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">Directory, workspaces, pipeline.</p>
                 </div>
               </label>
 
-              <label className="flex cursor-pointer items-start gap-3 rounded-[18px] border border-slate-200 bg-white p-4">
+              <label className="np-list-row flex cursor-pointer items-start gap-3 p-4">
                 <input
                   type="radio"
                   name="role"
@@ -157,31 +158,51 @@ export default function SettingsPage() {
                 />
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Buyer</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">Search + conversations.</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">Messages, property channels, review.</p>
                 </div>
               </label>
             </div>
 
-            <button className="mt-6 w-full rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-70">
+            <button className="np-button-primary mt-6 w-full disabled:opacity-70">
               {status === "saving" ? "Saving..." : "Save settings"}
             </button>
           </div>
         </form>
 
         {errorMessage ? (
-          <div className="mt-6 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <div className="mt-6 rounded-[18px] border border-rose-200 bg-rose-50/85 px-4 py-3 text-sm text-rose-700">
             {errorMessage}
           </div>
         ) : null}
+          </div>
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            href="/agent"
-            className="rounded-full border border-slate-200 px-5 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
-          >
-            Back to portal
-          </Link>
-          <SignOutButton className="rounded-full border border-slate-200 px-5 py-3 text-sm text-slate-700 transition hover:bg-slate-50" />
+          <aside className="np-pane-warm border-l border-t border-[var(--line)] px-6 py-6 lg:border-t-0">
+            <p className="np-kicker">Workspace behavior</p>
+            <div className="mt-4 space-y-3">
+              <div className="np-card p-4">
+                <p className="text-sm font-semibold text-slate-900">Agent</p>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Lands in the client directory, then opens buyer relationships with property-specific collaboration.
+                </p>
+              </div>
+              <div className="np-card p-4">
+                <p className="text-sm font-semibold text-slate-900">Buyer</p>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Lands in messages and sees the same relationship workspace with a simpler focus.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/agent"
+                className="np-button-secondary"
+              >
+                Back to portal
+              </Link>
+              <SignOutButton className="np-button-secondary" />
+            </div>
+          </aside>
         </div>
       </section>
     </main>
